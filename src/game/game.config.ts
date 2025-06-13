@@ -13,5 +13,19 @@ export const gameConfig: Types.Core.GameConfig = {
 		mode: Phaser.Scale.EXPAND,
 	},
 	transparent: true,
+	pixelArt: true, // Enable pixel-perfect rendering
+	antialias: false, // Disable antialiasing for crisp pixels
+	render: {
+		pixelArt: true, // Ensure crisp pixel rendering
+		antialias: false,
+		roundPixels: true // Round pixel positions for crisp edges
+	},
+	physics: {
+		default: 'arcade',
+		arcade: {
+			gravity: { x: 0, y: 0 },
+			debug: false
+		}
+	},
 	scene: [Boot, Preloader, Menu, Game, GameOver],
 }
