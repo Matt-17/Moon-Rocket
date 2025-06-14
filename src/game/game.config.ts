@@ -8,13 +8,15 @@ import { Preloader } from './scenes/Preloader.js';
 export const gameConfig: Types.Core.GameConfig = {
 	type: Phaser.AUTO,
 	autoFocus: true,
-	parent: 'game-container',
+	transparent: false,
 	scale: {
-		mode: Phaser.Scale.EXPAND,
+	  mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT ,
+	  autoCenter: Phaser.Scale.CENTER_BOTH,
+	  width: 560,
+	  height: 240,
+	  parent: 'core',
+	  fullscreenTarget: 'core',
 	},
-	transparent: true,
-	pixelArt: true, // Enable pixel-perfect rendering
-	antialias: false, // Disable antialiasing for crisp pixels
 	render: {
 		pixelArt: true, // Ensure crisp pixel rendering
 		antialias: false,
