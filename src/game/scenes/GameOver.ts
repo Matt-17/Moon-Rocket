@@ -31,7 +31,8 @@ export class GameOver extends Phaser.Scene {
 				fontFamily: 'Kenney',
 				color: '#ff4444',
 				align: 'center',
-			}).setOrigin(0.5);
+			}).setOrigin(0.5)
+			.setResolution(4);
 
 		// Score display
 		const scoreText = this.add
@@ -40,7 +41,8 @@ export class GameOver extends Phaser.Scene {
 				fontFamily: 'Kenney',
 				color: '#ffffff',
 				align: 'center',
-			}).setOrigin(0.5);
+			}).setOrigin(0.5)
+			.setResolution(4);
 
 		// Performance message
 		let performanceMsg = '';
@@ -52,11 +54,12 @@ export class GameOver extends Phaser.Scene {
 
 		const performanceText = this.add
 			.text(0, 20, performanceMsg, {
-				fontSize: '20px',
+				fontSize: '24px',
 				fontFamily: 'Kenney',
 				color: '#ffff88',
 				align: 'center',
-			}).setOrigin(0.5);
+			}).setOrigin(0.5)
+			.setResolution(4);
 
 		// Play again button
 		const replayButton = this.add
@@ -66,7 +69,8 @@ export class GameOver extends Phaser.Scene {
 				color: '#ffffff',
 				backgroundColor: '#4CAF50',
 				padding: { x: 20, y: 10 }
-			}).setOrigin(0.5);
+			}).setOrigin(0.5)
+			.setResolution(4);
 		
 		replayButton.setInteractive({ useHandCursor: true });
 		replayButton.on('pointerdown', () => {

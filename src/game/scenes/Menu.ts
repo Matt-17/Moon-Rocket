@@ -20,6 +20,7 @@ export class Menu extends Scene {
 				color: '#ffffff',
 			})
 			.setOrigin(0.5)
+			.setResolution(4);
 
 		this.add
 			.text(width / 2, height / 2 - 60, `Games played: ${attempts}`, {
@@ -28,6 +29,7 @@ export class Menu extends Scene {
 				color: '#ffffff',
 			})
 			.setOrigin(0.5)
+			.setResolution(4);
 
 		const startButton = this.add
 			.text(width / 2, height / 2 + 50, 'Start Game', {
@@ -39,6 +41,7 @@ export class Menu extends Scene {
 			})
 			.setOrigin(0.5)
 			.setInteractive({ useHandCursor: true })
+			.setResolution(4);
 
 		startButton.on('pointerdown', () => {
 			this.scene.start('Game')
