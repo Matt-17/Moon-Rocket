@@ -152,9 +152,11 @@ export class Game extends Phaser.Scene {
 		this.stars1 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars1')
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
+
 		this.stars2 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars2')
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
+
 		this.stars3 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars3')
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
