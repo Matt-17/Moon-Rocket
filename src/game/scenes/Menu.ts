@@ -1,4 +1,5 @@
 import { Scene } from 'phaser'
+import { StartButton } from '../components/StartButton.js'
 
 export class Menu extends Scene {
 	constructor() {
@@ -31,20 +32,7 @@ export class Menu extends Scene {
 			.setOrigin(0.5)
 			.setResolution(4);
 
-		const startButton = this.add
-			.text(width / 2, height / 2 + 50, 'Start Game', {
-				fontSize: '48px',
-				color: '#ffffff',
-				fontFamily: 'Kenney',
-				backgroundColor: '#000000',
-				padding: { x: 40, y: 40 },
-			})
-			.setOrigin(0.5)
-			.setInteractive({ useHandCursor: true })
-			.setResolution(4);
-
-		startButton.on('pointerdown', () => {
-			this.scene.start('Game')
-		})
+		new StartButton(this, width / 2, height / 2 + 50)
+			.onClick(() => this.scene.start('Game'));
 	}
 }
