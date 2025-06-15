@@ -5,8 +5,6 @@ export class Game extends Phaser.Scene {
 	rocket!: Phaser.GameObjects.Sprite;
 	candles!: Phaser.Physics.Arcade.StaticGroup;
 	scores!: Phaser.Physics.Arcade.StaticGroup;
-	buildingsFar!: Phaser.GameObjects.Group;
-	buildingsNear!: Phaser.GameObjects.Group;
 	thrust!: Phaser.GameObjects.Particles.ParticleEmitter;
 	buy!: Phaser.GameObjects.Particles.ParticleEmitter;
 	diamonds!: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -15,9 +13,7 @@ export class Game extends Phaser.Scene {
 	stars2!: Phaser.GameObjects.TileSprite;
 	stars3!: Phaser.GameObjects.TileSprite;
 
-	buildings1!: Phaser.GameObjects.TileSprite;
-	buildings2!: Phaser.GameObjects.TileSprite;
-	buildings3!: Phaser.GameObjects.TileSprite;
+	buildings!: Phaser.GameObjects.TileSprite;
 
 	// Game state
 	internalScore!: number; // Internal float score that increases linearly
@@ -161,15 +157,12 @@ export class Game extends Phaser.Scene {
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
 
-		this.buildings1 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'buildings')
+		this.buildings = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'buildings')
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
 
 		this.add.image(this.scale.width - 50, 50, 'moon')
 			.setScrollFactor(0);
-
-		this.buildingsFar = this.add.group();
-		this.buildingsNear = this.add.group();
 
 		// Create pipes group (without physics - we'll handle physics individually)
 		this.candles = this.physics.add.staticGroup();
@@ -449,7 +442,7 @@ export class Game extends Phaser.Scene {
 		this.stars2.tilePositionX += 0.013;
 		this.stars3.tilePositionX += 0.017;
 
-		this.buildings1.tilePositionX += 0.1;
+		this.buildings.tilePositionX += 0.1;
 
 		if (this.gameOver || !this.gameStarted) return;
 
