@@ -21,11 +21,12 @@ export class Preloader extends Scene {
 		});
 
 		this.load.image('background', 'background.png');
+		this.load.image('moon', 'moon.png');
 		
 		// load buildings spritesheet
 		this.load.spritesheet('buildings', 'buildings.png', { frameWidth: 50, frameHeight: 101 });
 		
-		this.load.image('candle_red', 'candle_red.png');
+		this.load.image('candle_red', 'candle_red.png');		
 		this.load.image('candle_green', 'candle_green.png');
 		this.load.image('background', 'background_1.png');
 		this.load.image('particle_buy', 'particle_buy.png');
