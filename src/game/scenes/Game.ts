@@ -3,6 +3,7 @@ export class Game extends Phaser.Scene {
 	rocket!: Phaser.GameObjects.Sprite;
 	pipes!: Phaser.GameObjects.Group;
 	particles!: Phaser.GameObjects.Group;
+	backgroundItems!: Phaser.GameObjects.Group;
 
 	// Game state
 	internalScore!: number; // Internal float score that increases linearly
@@ -27,6 +28,7 @@ export class Game extends Phaser.Scene {
 	trendStrengthMin = 30;     // min. Pixel rauf/runter pro Kerze
 	trendStrengthMax = 150;     // max. Pixel rauf/runter pro Kerze
 	nextCandleX!: number;// Track next candle X position for proper spacing
+	candleWidth = 30;
 
 	constructor() {
 		super('Game');
@@ -81,7 +83,7 @@ export class Game extends Phaser.Scene {
 				bodyMid,
 				isUp ? 'candle_green' : 'candle_red',
 				undefined,
-				30,
+				this.candleWidth,
 				bodyH, // /4 because of 4x scale
 				0, 0, 14, 14
 			);
@@ -121,16 +123,9 @@ export class Game extends Phaser.Scene {
 				this.weekendGapMin,
 				this.weekendGapMax
 			);
-			const candleWidth = 14 * 4;
-			this.nextCandleX += this.weekendTicks * candleWidth;
+			this.nextCandleX += this.weekendTicks * this.candleWidth;
 		}
 	}
-
-	// MARK: - Update spawn timer with current speed
-	updateSpawnTimer() {
-		const candleWidth = 14 * 4;
-	}
-
 
 	// MARK: - Increase game difficulty
 	increaseDifficulty() {
@@ -138,9 +133,6 @@ export class Game extends Phaser.Scene {
 
 		// Update existing particles to match new world speed
 		this.updateParticleVelocities();
-
-		// Update spawn timer with new speed
-		this.updateSpawnTimer();
 	}
 
 	// MARK: - Update particle velocities
@@ -162,7 +154,7 @@ export class Game extends Phaser.Scene {
 	createThrustParticles() {
 		// Create 2-3 particles at rocket position
 		const particleCount = Phaser.Math.Between(2, 4);
-
+	  
 		for (let i = 0; i < particleCount; i++) {
 			const particle = this.add.sprite(
 				this.rocket.x - this.rocket.width * this.rocket.scaleX * 0.6 + Phaser.Math.Between(-15, 15), // Further behind the rocket
@@ -227,11 +219,11 @@ export class Game extends Phaser.Scene {
 		bg.setDisplaySize(this.scale.width, this.scale.height);
 
 		// Create ground (visual only, no collision)
-		const ground = this.add.rectangle(this.scale.width / 2, this.scale.height - 10, this.scale.width, 20, 0x8B4513);
-		ground.setStrokeStyle(2, 0x654321);
-		ground.setAlpha(0.8); // Make it semi-transparent to blend with background
+		//const ground = this.add.rectangle(this.scale.width / 2, this.scale.height - 10, this.scale.width, 20, 0x8B4513);
+		//ground.setStrokeStyle(2, 0x654321);
+		//ground.setAlpha(0.8); // Make it semi-transparent to blend with background
 
-		// Create rocket (positioned more to the right)
+		// Create rocket (positioned at 25% of the screen width)
 		this.rocket = this.add.sprite(this.scale.width * 0.25, this.scale.height / 2, 'rocket');
 		this.rocket.setRotation(0); // Start perfectly horizontal
 		this.rocket.play('rocket_idle'); // Start with idle animation
@@ -243,8 +235,7 @@ export class Game extends Phaser.Scene {
 		// Make rocket collision box smaller (remove top and bottom 3 pixels)
 		rocketBody.setSize(this.rocket.width - 6, this.rocket.height - 6, true); // Remove 6 pixels total (3 top + 3 bottom)
 		rocketBody.setOffset(3, 3); // Offset to center the smaller hitbox
-		const candleWidth = 14 * 4;
-		this.nextCandleX = this.scale.width + candleWidth;
+		this.nextCandleX = this.scale.width + this.candleWidth;
 
 		// Create pipes group (without physics - we'll handle physics individually)
 		this.pipes = this.add.group();
@@ -346,9 +337,6 @@ export class Game extends Phaser.Scene {
 			startText.destroy();
 		}
 
-		// Calculate initial spawn delay
-		this.updateSpawnTimer();
-
 		// Spawn first set of pipes
 		this.time.delayedCall(1000, this.spawnPipes, [], this);
 	}
@@ -357,12 +345,10 @@ export class Game extends Phaser.Scene {
 	spawnPipes() {
 		if (this.gameOver) return;
 
-		const candleWidth = 14 * 4;
-
 		// Skip candle spawn during weekend
 		if (this.weekendTicks > 0) {
 			this.weekendTicks--;
-			this.nextCandleX += candleWidth;
+			this.nextCandleX += this.candleWidth;
 			return;
 		}
 
@@ -377,7 +363,7 @@ export class Game extends Phaser.Scene {
 		this.pipes.addMultiple([candle, trigger]);
 		this.lastClose = ohlc.closeY;
 
-		this.nextCandleX += candleWidth;
+		this.nextCandleX += this.candleWidth;
 
 		this.handleWeekendLogic();
 
