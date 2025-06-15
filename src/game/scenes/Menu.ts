@@ -1,6 +1,7 @@
 import { Scene } from 'phaser'
 import { StartButton } from '../components/StartButton.js'
 import { Background } from '../components/Background.js'
+import { TextStyles } from '../utils/TextStyles.js'
 
 export class Menu extends Scene {
 	background!: Background;
@@ -19,21 +20,21 @@ export class Menu extends Scene {
 		const playerStats = this.registry.get('playerStats')
 		const { highscore, attempts } = playerStats
 
+		// Game title using TextStyles
 		this.add
-			.text(width / 2, height / 2 - 100, `Highscore: ${highscore}`, {
-				fontSize: '32px',
-				fontFamily: 'Kenney',
-				color: '#ffffff',
-			})
+			.text(width / 2, height / 2 - 150, 'Flappy Rockets', TextStyles.TITLE_GREEN)
 			.setOrigin(0.5)
 			.setResolution(4);
 
+		// Highscore using SUBTITLE style
 		this.add
-			.text(width / 2, height / 2 - 60, `Games played: ${attempts}`, {
-				fontSize: '32px',
-				fontFamily: 'Kenney',
-				color: '#ffffff',
-			})
+			.text(width / 2, height / 2 - 100, `Highscore: ${highscore}`, TextStyles.SUBTITLE)
+			.setOrigin(0.5)
+			.setResolution(4);
+
+		// Games played using BODY style
+		this.add
+			.text(width / 2, height / 2 - 60, `Games played: ${attempts}`, TextStyles.BODY)
 			.setOrigin(0.5)
 			.setResolution(4);
 
