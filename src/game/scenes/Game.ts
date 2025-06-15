@@ -1,4 +1,5 @@
 import { Tweens } from "phaser";
+import { Background } from "../components/Background.js";
 
 export class Game extends Phaser.Scene {
 	// Game objects
@@ -9,11 +10,9 @@ export class Game extends Phaser.Scene {
 	buy!: Phaser.GameObjects.Particles.ParticleEmitter;
 	diamonds!: Phaser.GameObjects.Particles.ParticleEmitter;
 	rocketFlap!: Phaser.Tweens.TweenChain;
-	stars1!: Phaser.GameObjects.TileSprite;
-	stars2!: Phaser.GameObjects.TileSprite;
-	stars3!: Phaser.GameObjects.TileSprite;
-
-	buildings!: Phaser.GameObjects.TileSprite;
+	
+	// Background component
+	background!: Background;
 
 	// Game state
 	internalScore!: number; // Internal float score that increases linearly
@@ -140,29 +139,8 @@ export class Game extends Phaser.Scene {
 		// Set up world bounds
 		this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
 
-		// Create pixel art background
-		this.add.image(this.scale.width / 2, this.scale.height / 2, 'background')
-			.setScrollFactor(0)
-			.setDisplaySize(this.scale.width, this.scale.height);
-
-		this.stars1 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars1')
-			.setScrollFactor(0)
-			.setOrigin(0, 0);
-
-		this.stars2 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars2')
-			.setScrollFactor(0)
-			.setOrigin(0, 0);
-
-		this.stars3 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars3')
-			.setScrollFactor(0)
-			.setOrigin(0, 0);
-
-		this.buildings = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'buildings')
-			.setScrollFactor(0)
-			.setOrigin(0, 0);
-
-		this.add.image(this.scale.width - 50, 50, 'moon')
-			.setScrollFactor(0);
+		// Create background component
+		this.background = new Background(this);
 
 		// Create pipes group (without physics - we'll handle physics individually)
 		this.candles = this.physics.add.staticGroup();
@@ -436,13 +414,9 @@ export class Game extends Phaser.Scene {
 	}
 
 	// MARK: - Update
-	override update() {
-		// Always animate stars, even when game is not started
-		this.stars1.tilePositionX += 0.011;
-		this.stars2.tilePositionX += 0.013;
-		this.stars3.tilePositionX += 0.017;
-
-		this.buildings.tilePositionX += 0.1;
+	override update(_time: number, delta: number) {
+		// Always animate background, even when game is not started
+		this.background.update(delta);
 
 		if (this.gameOver || !this.gameStarted) return;
 
