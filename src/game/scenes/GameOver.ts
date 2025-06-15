@@ -1,5 +1,6 @@
 import { PostMessageManager } from '../events/PostMessageManager.js';
 import { Scene } from 'phaser';
+import { StartButton } from '../components/StartButton.js';
 
 export class GameOver extends Phaser.Scene {
 	score = 0
@@ -61,32 +62,12 @@ export class GameOver extends Phaser.Scene {
 			}).setOrigin(0.5)
 			.setResolution(4);
 
-		// Play again button
-		const replayButton = this.add
-			.text(0, 80, 'Play Again', {
-				fontSize: '24px',
-				fontFamily: 'Kenney',
-				color: '#ffffff',
-				backgroundColor: '#4CAF50',
-				padding: { x: 20, y: 10 }
-			}).setOrigin(0.5)
-			.setResolution(4);
-		
-		replayButton.setInteractive({ useHandCursor: true });
-		replayButton.on('pointerdown', () => {
-			this.cameras.main.fade(200, 0, 0, 0);
-			this.time.delayedCall(200, () => this.scene.start('Game'));
-		});
-		
-		// Hover effects
-		replayButton.on('pointerover', () => {
-			replayButton.setScale(1.1);
-			replayButton.setStyle({ backgroundColor: '#45a049' });
-		});
-		replayButton.on('pointerout', () => {
-			replayButton.setScale(1);
-			replayButton.setStyle({ backgroundColor: '#4CAF50' });
-		});
+		// Play again button using the component
+		const replayButton = new StartButton(this, 0, 80)
+			.onClick(() => {
+				this.cameras.main.fade(200, 0, 0, 0);
+				this.time.delayedCall(200, () => this.scene.start('Game'));
+			});
 
 		// Container with slide-in animation
 		const container = this.add.container(this.cameras.main.centerX, this.cameras.main.centerY, [

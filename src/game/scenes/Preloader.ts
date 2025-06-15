@@ -25,17 +25,24 @@ export class Preloader extends Scene {
 
 
 		this.load.image('background', 'background.png');
+		this.load.image('stars1', 'stars1.png');
+		this.load.image('stars2', 'stars2.png');
+		this.load.image('stars3', 'stars3.png');
 		this.load.image('moon', 'moon.png');
 
-		// load buildings spritesheet
-		this.load.spritesheet('buildings', 'buildings.png', { frameWidth: 50, frameHeight: 101 });
+		this.load.image('buildings', 'buildings.png');
 
 		this.load.image('candle_red', 'candle_red.png');
 		this.load.image('candle_green', 'candle_green.png');
 		this.load.image('background', 'background_1.png');
-		this.load.image('particle_buy', 'particle_buy.png');
+		this.load.image('buy', 'buy.png');
+		
+		this.load.image('star', 'star.png');
+		this.load.image('diamond', 'diamond.png');
+		
 		this.load.audio('flap', 'flap.ogg');
 		this.load.audio('milestone', 'milestone.ogg');
+		this.load.audio('explosion', 'explosion.ogg');
 		this.load.font('Kenney', 'Kenney_Mini_Square.ttf');
 	}
 
