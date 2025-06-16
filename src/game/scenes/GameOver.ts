@@ -2,6 +2,7 @@ import { PostMessageManager } from '../events/PostMessageManager.js';
 import { Scene } from 'phaser';
 import { StartButton } from '../components/StartButton.js';
 import { Background } from '../components/Background.js';
+import { TextStyles } from '../utils/TextStyles.js'
 
 export class GameOver extends Phaser.Scene {
 	score = 0
@@ -32,22 +33,14 @@ export class GameOver extends Phaser.Scene {
 
 		// Game Over title
 		const gameOverTitle = this.add
-			.text(0, -80, 'Game Over!', {
-				fontSize: '48px',
-				fontFamily: 'Kenney',
-				color: '#ff4444',
-				align: 'center',
-			}).setOrigin(0.5)
+			.text(0, -80, 'Game Over!', TextStyles.TITLE_RED)
+			.setOrigin(0.5)
 			.setResolution(4);
 
 		// Score display
 		const scoreText = this.add
-			.text(0, -20, `Score: ${this.score}`, {
-				fontSize: '32px',
-				fontFamily: 'Kenney',
-				color: '#ffffff',
-				align: 'center',
-			}).setOrigin(0.5)
+			.text(0, -20, `Your floor: ${this.score}`, TextStyles.SUBTITLE)
+			.setOrigin(0.5)
 			.setResolution(4);
 
 		// Performance message
@@ -59,12 +52,8 @@ export class GameOver extends Phaser.Scene {
 		else performanceMsg = 'Keep trying!';
 
 		const performanceText = this.add
-			.text(0, 20, performanceMsg, {
-				fontSize: '24px',
-				fontFamily: 'Kenney',
-				color: '#ffff88',
-				align: 'center',
-			}).setOrigin(0.5)
+			.text(0, 20, performanceMsg, TextStyles.SUBTITLE_YELLOW)
+			.setOrigin(0.5)
 			.setResolution(4);
 
 		// Play again button using the component

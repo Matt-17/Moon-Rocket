@@ -20,25 +20,19 @@ export class Menu extends Scene {
 		const playerStats = this.registry.get('playerStats')
 		const { highscore, attempts } = playerStats
 
-		// Game title using TextStyles
-		this.add
-			.text(width / 2, height / 2 - 150, 'Flappy Rockets', TextStyles.TITLE_GREEN)
-			.setOrigin(0.5)
-			.setResolution(4);
+		// logo
+		this.add.image(100, 20, 'logo').setOrigin(0.5, 0);
 
 		// Highscore using SUBTITLE style
 		this.add
-			.text(width / 2, height / 2 - 100, `Highscore: ${highscore}`, TextStyles.SUBTITLE)
-			.setOrigin(0.5)
+			.text(350, 10, `Highscore: ${highscore}`, TextStyles.SUBTITLE)
+			.setOrigin(0.5,0)
 			.setResolution(4);
 
-		// Games played using BODY style
-		this.add
-			.text(width / 2, height / 2 - 60, `Games played: ${attempts}`, TextStyles.BODY)
-			.setOrigin(0.5)
-			.setResolution(4);
+		// rocket
+		this.add.image(490, 25, 'rocket').setOrigin(0.5, 0).setScale(1);
 
-		new StartButton(this, width / 2, height / 2 + 50)
+		new StartButton(this, 100, 150)
 			.onClick(() => this.scene.start('Game'));
 	}
 

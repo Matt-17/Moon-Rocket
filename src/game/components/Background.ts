@@ -111,12 +111,6 @@ export class Background {
 	update(delta: number) {
 		// Convert delta from milliseconds to seconds
 		const deltaSeconds = delta / 1000;
-		
-        // log the delta
-        console.log('delta', delta);
-        console.log('deltaSeconds', deltaSeconds);
-        console.log('stars1Speed', this.stars1Speed);
-        console.log('stars1Speed', this.stars1Speed * deltaSeconds);
 
 		// Move backgrounds based on time, not frames
 		this.stars1.tilePositionX += this.stars1Speed * deltaSeconds;
