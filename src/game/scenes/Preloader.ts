@@ -23,6 +23,7 @@ export class Preloader extends Scene {
 		// load start button start.png -> 3 buttons vertical 96 x 40; first is normal, then hover, then pressed
 		this.load.spritesheet('start', 'start.png', { frameWidth: 96, frameHeight: 40 });
 
+		this.load.image('logo', 'logo.png');
 
 		this.load.image('background', 'background.png');
 		this.load.image('stars1', 'stars1.png');

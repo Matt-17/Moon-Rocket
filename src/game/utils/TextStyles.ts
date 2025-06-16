@@ -13,10 +13,10 @@ export class TextStyles {
   public static readonly TITLE_RED: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: 'Kenney',
     fontSize: '48px',
-    color: '#ff4444',
+    color: '#f7323c',
     align: 'center',
     stroke: '#000000',
-    strokeThickness: 3,
+    strokeThickness: 2,
   };
 
   /** Großes grünes Titel‑Label mit Kontur */
@@ -45,6 +45,12 @@ export class TextStyles {
     strokeThickness: 2,
   };
 
+  /** Mittelgroße Überschrift »yellow« mit Kontur */
+  public static readonly SUBTITLE_YELLOW: Phaser.Types.GameObjects.Text.TextStyle = {
+    ...TextStyles.SUBTITLE,
+    color: '#ffff88',
+  };
+
   /** Kleinere Überschrift */
   public static readonly HEADER: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: 'Kenney',
@@ -66,7 +72,7 @@ export class TextStyles {
     color: '#ffff88',
     align: 'center',
     stroke: '#000000',
-    strokeThickness: 1,
+    strokeThickness: 2,
   };
 
   /** Normaler weißer Body-Text */

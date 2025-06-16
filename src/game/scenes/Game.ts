@@ -1,16 +1,17 @@
 import { Tweens } from "phaser";
 import { Background } from "../components/Background.js";
+import { TextStyles } from "../utils/TextStyles.js";
 
 export class Game extends Phaser.Scene {
 	// Game objects
 	rocket!: Phaser.GameObjects.Sprite;
 	candles!: Phaser.Physics.Arcade.StaticGroup;
 	scores!: Phaser.Physics.Arcade.StaticGroup;
-	thrust!: Phaser.GameObjects.Particles.ParticleEmitter;
-	buy!: Phaser.GameObjects.Particles.ParticleEmitter;
-	diamonds!: Phaser.GameObjects.Particles.ParticleEmitter;
+	thrustParticles!: Phaser.GameObjects.Particles.ParticleEmitter;
+	buyParticle!: Phaser.GameObjects.Particles.ParticleEmitter;
+	diamondParticles!: Phaser.GameObjects.Particles.ParticleEmitter;
 	rocketFlap!: Phaser.Tweens.TweenChain;
-	
+
 	// Background component
 	background!: Background;
 
@@ -155,7 +156,7 @@ export class Game extends Phaser.Scene {
 		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
 		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
 
-		this.thrust = this.add
+		this.thrustParticles = this.add
 			.particles(0, 0, 'star', {
 				quantity: { min: 5, max: 15 },
 				lifespan: 1200,
@@ -168,8 +169,7 @@ export class Game extends Phaser.Scene {
 			.startFollow(this.rocket, -this.rocket.width * 0.1, 0)
 			.stop();
 
-		// buy is one single particle "buy"
-		this.buy = this.add
+		this.buyParticle = this.add
 			.particles(0, 0, 'buy', {
 				quantity: 1,
 				lifespan: 500,
@@ -183,7 +183,7 @@ export class Game extends Phaser.Scene {
 			.stop();
 
 		// diamons is 3-8 diamonds
-		this.diamonds = this.add
+		this.diamondParticles = this.add
 			.particles(0, 0, 'diamond', {
 				quantity: { min: 3, max: 8 },
 				lifespan: 2000,
@@ -197,7 +197,7 @@ export class Game extends Phaser.Scene {
 			.stop();
 
 		(this.rocket.body as Phaser.Physics.Arcade.Body)
-			.setSize(this.rocket.width - 12, this.rocket.height - 7, true)
+			.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
 			.setOffset(10, 3);
 
 		this.rocketFlap = this.tweens.chain({
@@ -216,22 +216,13 @@ export class Game extends Phaser.Scene {
 
 		// Create UI
 		this.scoreText = this.add
-			.text(16, 16, 'Floor: 0', {
-				fontSize: '16px',
-				fontFamily: 'Kenney',
-				color: '#ffffff'
-			})
+			.text(16, 16, 'Floor: 0', TextStyles.SCORE)
 			.setResolution(4)
 			.setScrollFactor(0);
 
 		// Add start instructions
 		const startText = this.add
-			.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Click to Start!\nClick to Thrust', {
-				fontSize: '24px',
-				fontFamily: 'Kenney',
-				color: '#1ec51e',
-				align: 'center'
-			})
+			.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
 			.setOrigin(0.5)
 			.setResolution(4);
 
@@ -239,8 +230,8 @@ export class Game extends Phaser.Scene {
 		this.data.set('startText', startText);
 
 		// Input handling
-		this.input.on('pointerdown', this.flap, this);
-		this.input.keyboard?.on('keydown-SPACE', this.flap, this);
+		this.input.on('pointerdown', this.thrustRocket, this);
+		this.input.keyboard?.on('keydown-SPACE', this.thrustRocket, this);
 
 		// Ensure physics world is running	
 		this.cameras.main.startFollow(this.rocket, false, 1, 0, - this.scale.width / 4, 0);
@@ -248,7 +239,7 @@ export class Game extends Phaser.Scene {
 	}
 
 	// MARK: - Flap
-	flap() {
+	thrustRocket() {
 		if (this.gameOver) {
 			return;
 		}
@@ -275,35 +266,11 @@ export class Game extends Phaser.Scene {
 			}
 		});
 
-
 		// Create thrust particles
-		this.thrust.explode();
-		this.buy.explode();
+		this.thrustParticles.explode();
+		this.buyParticle.explode();
 
 		this.rocketFlap.restart();
-		return;
-
-		// Kill any existing rotation/scale tweens to prevent conflicts
-		this.tweens.killTweensOf(this.rocket);
-
-		// Rocket animation (thrust upward rotation then back to horizontal)
-		this.rocket.setRotation(-0.3); // Quick upward angle
-		this.tweens.add({
-			targets: this.rocket,
-			rotation: 0, // Return to horizontal
-			duration: 300,
-			ease: 'Power2'
-		});
-
-		// Scale boost effect for thrust
-		this.rocket.setScale(1.15);
-		this.tweens.add({
-			targets: this.rocket,
-			scaleX: 1,
-			scaleY: 1,
-			duration: 150,
-			ease: 'Power2'
-		});
 	}
 
 	// MARK: - Start game
@@ -390,7 +357,7 @@ export class Game extends Phaser.Scene {
 			ease: 'Power2'
 		});
 
-		this.diamonds.explode();
+		this.diamondParticles.explode();
 		this.sound.play('explosion', { volume: 0.3 });
 
 		// Show game over after short delay
