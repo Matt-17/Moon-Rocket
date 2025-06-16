@@ -29,7 +29,6 @@ export class Menu extends Scene {
 			.setOrigin(0.5, 0)
 			.setResolution(4);
 
-		// rocket
 		this.add.image(490, 25, 'rocket').setOrigin(0.5, 0).setScale(1);
 
 		new StartButton(this, 100, 150).onClick(() => this.startGame());

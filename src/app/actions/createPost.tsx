@@ -1,7 +1,7 @@
 import { Devvit, type MenuItem, type MenuItemOnPressEvent } from '@devvit/public-api'
 
 export const createPost: MenuItem = {
-	label: 'Create Flappy Rockets Post',
+	label: 'Create Moon Rocket Game Post',
 	location: 'subreddit',
 	forUserType: 'moderator',
 	onPress: async (_: MenuItemOnPressEvent, context: Devvit.Context) => {
@@ -11,7 +11,7 @@ export const createPost: MenuItem = {
 		try {
 			const post = await reddit.submitPost({
 				//	This is the name that will appear above your Reddit Post.
-				title: `Flappy Rockets`,
+				title: `Moon Rocket`,
 				subredditName: subreddit.name,
 
 				//	This is what the user will see when start loading the Post.
