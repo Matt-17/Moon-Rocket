@@ -7,22 +7,21 @@ export const SplashScreen = (props: { onPress: () => void; context: Context }) =
 	const { onPress, context } = props
 
 	return (
-		<zstack grow height="100%" width="100%" alignment="middle center">
-			<zstack>
-				<image
-					url="splash.png"
-					height="100%"
-					width="100%"
-					imageWidth={`${context.dimensions?.width ?? 6100570}px`}
-					imageHeight={`${context.dimensions?.height ?? 600}px`}
-					resizeMode="cover"
-				/>
-			</zstack>
-			<zstack>
-				<button icon="play-fill" appearance="secondary" size="large" onPress={onPress}>
-					PLAY GAME
+		<zstack grow height="100%" width="100%" alignment="bottom center">
+			<image
+				url="splash.png"
+				height="100%"
+				width="100%"
+				imageWidth={`${context.dimensions?.width ?? 1005}px`}
+				imageHeight={`${context.dimensions?.height ?? 446}px`}
+				resizeMode="cover"
+			/>
+			<vstack padding="none">
+				<button icon="play-fill" appearance="primary" size="large" onPress={onPress}>
+					PLAY MOON ROCKET
 				</button>
-			</zstack>
+				<spacer height="20px" />
+			</vstack>
 		</zstack>
 	)
 }
