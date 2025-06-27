@@ -4,6 +4,21 @@
 	"version": "0.0.0",
 	"license": "BSD-3-Clause",
 	"type": "module",
+  "scripts": {
+    "build:client": "cd src/client && vite build",
+    "check": "npm run type-check && npm run lint:fix && npm run prettier",
+    "devvit:init": "devvit upload --copy-paste && touch .initialized",
+    "deploy": "npm run build:client && devvit upload --bump-version",
+    "dev": "node setup-devvit.cjs",
+    "dev:all": "concurrently -p \"[{name}]\" -n \"VITE,DEVVIT,GAME\" -c \"blue,green,magenta\" \"npm run dev:vite\" \"npm run dev:devvit\" \"npm run dev:client\" --restart-tries 2",
+    "dev:client": "cd src/client && vite build --watch",
+    "dev:devvit": "devvit playtest r/devMatt",
+    "lint": "eslint ./src",
+    "lint:fix": "eslint --fix ./src",
+    "login": "devvit login --copy-paste",
+    "prettier": "prettier-package-json --write ./package.json && prettier --write .",
+    "type-check": "tsc --build"
+  },
 	"dependencies": {
 		"@devvit/public-api": "0.11.11",
 		"phaser": "3.90"
