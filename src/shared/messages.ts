@@ -3,7 +3,7 @@
 //	For example, you could define a message that requests the player's stats from the Devvit side,
 // 	and utilize these types to make your App more typesafe.
 
-export type PostMessage = SaveHighscoreMessage | RequestPlayerStatsMessage
+export type PostMessage = SaveHighscoreMessage | RequestPlayerStatsMessage | RequestLeaderboardMessage
 
 export type SaveHighscoreMessage = {
 	type: 'save:score'
@@ -14,6 +14,10 @@ export type RequestPlayerStatsMessage = {
 	type: 'request:player:stats'
 }
 
+export type RequestLeaderboardMessage = {
+	type: 'request:leaderboard'
+}
+
 export type HighscorePayload = {
 	score: number
 }
@@ -21,4 +25,16 @@ export type HighscorePayload = {
 export type PlayerStats = {
 	highscore: number
 	attempts: number
+	rank?: number
+}
+
+export interface LeaderboardEntry {
+	username: string
+	score: number
+	rank: number
+}
+
+export type LeaderboardData = {
+	leaderboard: LeaderboardEntry[]
+	userStats: PlayerStats
 }
