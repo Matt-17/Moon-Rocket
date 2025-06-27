@@ -22,7 +22,7 @@ export const gameConfig: Types.Core.GameConfig = {
 	render: {
 		pixelArt: true, // Ensure crisp pixel rendering
 		antialias: false,
-		roundPixels: false // Round pixel positions for crisp edges
+		roundPixels: true // Round pixel positions for crisp edges
 	},
 	physics: {
 		default: 'arcade',
