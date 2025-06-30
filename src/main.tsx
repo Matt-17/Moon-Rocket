@@ -11,7 +11,7 @@ import type { PostMessage } from './shared/messages.js';
 //	You can disable Redis by commenting out the redis property line below.
 Devvit.configure({
 	redditAPI: true,
-	//	redis: false,
+	redis: true,
 });
 
 //	You create a Post triggering the action from the Subreddits menu.
@@ -44,10 +44,35 @@ Devvit.addCustomPostType({
 					}
 					case 'request:player:stats': {
 						const playerStats = await redisService.getCurrentUserStats()
+						const userRank = await redisService.getUserRank()
+						
 						postMessage({
 							type: 'update:player:stats',
-							data: playerStats,
+							data: {
+								...playerStats,
+								rank: userRank
+							},
 						})
+						break;
+					}
+					case 'request:leaderboard': {
+						const [leaderboard, playerStats] = await Promise.all([
+							redisService.getLeaderboard(10),
+							redisService.getCurrentUserStats()
+						]);
+						
+						const userRank = await redisService.getUserRank();
+						
+						postMessage({
+							type: 'update:leaderboard',
+							data: {
+								leaderboard,
+								userStats: {
+									...playerStats,
+									rank: userRank
+								}
+							},
+						});
 						break;
 					}
 					default: {

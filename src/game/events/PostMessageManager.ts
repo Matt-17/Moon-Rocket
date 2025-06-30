@@ -1,4 +1,4 @@
-import type { PostMessage } from '../../shared/messages.js';
+import type { PostMessage, LeaderboardData } from '../../shared/messages.js';
 import eventEmitter from './EventEmitter.js';
 
 export class PostMessageManager {
@@ -32,6 +32,10 @@ export class PostMessageManager {
 					//	Note: Be carrful with global events. If you do not clean them up
 					// 	they can cause memory leaks or unwanted side effects.
 					eventEmitter.emit('update:player:stats', message.data);
+					break;
+				}
+				case 'update:leaderboard': {
+					eventEmitter.emit('update:leaderboard', message.data);
 					break;
 				}
 			}
