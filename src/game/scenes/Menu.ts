@@ -1,12 +1,17 @@
 import { Scene } from 'phaser'
 import { StartButton } from '../components/StartButton.js'
+import { Background } from '../components/Background.js'
 
 export class Menu extends Scene {
+	background!: Background;
+
 	constructor() {
 		super({ key: 'Menu' })
 	}
 
 	async create() {
+		// Create animated background
+		this.background = new Background(this);
 		const { width, height } = this.scale
 
 		//	You can use the registry to access the playerStats data from the Preloader scene
@@ -34,5 +39,10 @@ export class Menu extends Scene {
 
 		new StartButton(this, width / 2, height / 2 + 50)
 			.onClick(() => this.scene.start('Game'));
+	}
+
+	override update(_time: number, delta: number) {
+		// Animate background
+		this.background.update(delta);
 	}
 }

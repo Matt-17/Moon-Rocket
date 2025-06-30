@@ -1,9 +1,11 @@
 import { PostMessageManager } from '../events/PostMessageManager.js';
 import { Scene } from 'phaser';
 import { StartButton } from '../components/StartButton.js';
+import { Background } from '../components/Background.js';
 
 export class GameOver extends Phaser.Scene {
 	score = 0
+	background!: Background;
 
 	constructor() {
 		super('GameOver');
@@ -15,6 +17,9 @@ export class GameOver extends Phaser.Scene {
 
 	create() {
 		PostMessageManager.send({ type: 'save:score', data: { score: this.score } });
+
+		// Create animated background
+		this.background = new Background(this);
 
 		// Dark overlay with fade-in effect
 		const overlay = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0).setOrigin(0, 0);
@@ -84,5 +89,10 @@ export class GameOver extends Phaser.Scene {
 			delay: 200,
 			ease: 'Back.easeOut'
 		});
+	}
+
+	override update(_time: number, delta: number) {
+		// Animate background
+		this.background.update(delta);
 	}
 }
