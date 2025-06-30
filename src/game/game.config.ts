@@ -11,7 +11,7 @@ export const gameConfig: Types.Core.GameConfig = {
 	transparent: false,
     backgroundColor: '#3498db', // hier Farbe setzen
 	scale: {
-	  mode: Phaser.Scale.WIDTH_CONTROLS_HEIGHT ,
+	  mode: Phaser.Scale.FIT,
 	  autoCenter: Phaser.Scale.CENTER_BOTH,
 	  width: 560,
 	  height: 240,
