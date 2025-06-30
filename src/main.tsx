@@ -1,46 +1,68 @@
-// Learn more at developers.reddit.com/docs
-import { Devvit } from '@devvit/public-api';
-import { GameComponent } from './components/Game.js';
+import { Devvit, useState, useWebView } from '@devvit/public-api';
+import './app/actions/createPost.js';
+import { createPost } from './app/actions/createPost.js';
+import { SplashScreen } from './app/components/SplashScreen.js';
+import { RedisService } from './app/services/RedisService.js';
+import type { PostMessage } from './shared/messages.js';
 
+//	Devvit.configure is a function that allows you to configure which
+//	Devvit features you want to enable.
+//	In this template we enable the Reddit API and use Redis to store highscores.
+//	You can disable Redis by commenting out the redis property line below.
 Devvit.configure({
-  redditAPI: true,
+	redditAPI: true,
+	//	redis: false,
 });
 
-// Game constants
-// ... deleted ...
+//	You create a Post triggering the action from the Subreddits menu.
+Devvit.addMenuItem(createPost);
 
-// Add a menu item to the subreddit menu for instantiating the new experience post
-Devvit.addMenuItem({
-  label: 'Add Flappy Rockets Game',
-  location: 'subreddit',
-  forUserType: 'moderator',
-  onPress: async (_event, context) => {
-    const { reddit, ui } = context;
-    ui.showToast("🚀 Creating your Flappy Rockets game...");
-
-    const subreddit = await reddit.getCurrentSubreddit();
-    const post = await reddit.submitPost({
-      title: '🚀 Flappy Rockets - Can you beat the high score?',
-      subredditName: subreddit.name,
-      preview: (
-        <vstack height="100%" width="100%" alignment="middle center" gap="medium">
-          <text size="xlarge">🚀 Flappy Rockets</text>
-          <text size="large">Loading game...</text>
-          <text size="medium" color="#a0a0a0">Get ready to fly!</text>
-        </vstack>
-      ),
-    });
-    ui.navigateTo(post);
-  },
-});
-
-// Add a post type definition
 Devvit.addCustomPostType({
-  name: 'Flappy Rockets Game',
-  height: 'tall',
-  render: (context) => {
-    return <GameComponent context={context} />;
-  },
+	name: 'Flappy Rockets Game',
+	height: 'regular',
+	render: (context: Devvit.Context) => {
+		const redisService = new RedisService(context);
+
+		//	We use the useWebView hook to mount the Phase game within a WebView.
+		//	This will also allow us to start the game in focus mode that is required by the Devvit
+		//	guidelanes to be approved in the future. https://developers.reddit.com/docs/webviews
+		const { mount, postMessage } = useWebView({
+			//	The url property is the path to the index.html file that is located in the webroot/ folder.
+			url: `index.html`,
+
+			//	The onMessage function is a callback that is called when the WebView sends a message.
+			//	For example, the Players score is sent to the WebView when the game is over.
+			//	We can then save the score to Redis and show a toast message to the player.
+			onMessage: async (ev: PostMessage) => {
+				switch (ev.type) {
+					case 'save:score': {
+						const [savedScore] = await redisService.saveScore(ev.data.score)
+						if (typeof savedScore === 'number') {
+							context.ui.showToast(`Hooray, new personal best: ${savedScore}!`)
+						}
+						break;
+					}
+					case 'request:player:stats': {
+						const playerStats = await redisService.getCurrentUserStats()
+						postMessage({
+							type: 'update:player:stats',
+							data: playerStats,
+						})
+						break;
+					}
+					default: {
+						console.warn(`Unknown message type "${(ev as unknown as any).type}" !`)
+					}
+				}
+			},
+
+			//	If you need to do cleanups when the WebView is unmounted, you can use the onUnmount callback.
+			// 	For example, you could show a toast message to the player when they leave the focus mode.
+			onUnmount: () => context.ui.showToast('Thanks for playing! See you soon!'),
+		});
+
+		return <SplashScreen onPress={mount} context={context} />;
+	},
 });
 
 export default Devvit;
