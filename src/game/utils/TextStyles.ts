@@ -54,7 +54,7 @@ export class TextStyles {
   /** Kleinere Überschrift */
   public static readonly HEADER: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: 'Kenney',
-    fontSize: '28px',
+    fontSize: '24px',
     color: '#ffffff',
     align: 'center',
     stroke: '#000000',
@@ -86,9 +86,7 @@ export class TextStyles {
     fontFamily: 'Kenney',
     fontSize: '16px',
     color: '#cccccc',
-    align: 'center',
-    stroke: '#333333',
-    strokeThickness: 2,
+    align: 'left',
   };
 
   // =============================================================================
@@ -107,7 +105,7 @@ export class TextStyles {
   /** Größere Score-Anzeige */
   public static readonly SCORE_LARGE: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: 'Kenney',
-    fontSize: '20px',
+    fontSize: '16px',
     color: '#ffffff',
     stroke: '#000000',
     strokeThickness: 2,

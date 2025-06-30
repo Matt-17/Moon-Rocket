@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import type { PlayerStats, LeaderboardData } from '../../shared/messages.js';
+import type { PlayerStats, LeaderboardData, LeaderboardEntry } from '../../shared/messages.js';
 import eventEmitter from '../events/EventEmitter.js';
 import { PostMessageManager } from '../events/PostMessageManager.js';
 

@@ -20,6 +20,7 @@ export class RedisService {
 		this.redis = context.redis;
 
 		this.subredditId = context.subredditId;
+		this.userId = context.userId!;
 	}
 
 	async savePlayerHighscore(score: number) {
@@ -89,10 +90,37 @@ export class RedisService {
 				}
 			}
 			
+			// If we have fewer than the requested limit, pad with starter entries
+			if (leaderboard.length < limit) {
+				const starterNames = [
+					'RocketPioneer', 'MoonExplorer', 'StarSeeker', 'CosmicDreamer', 'SpaceVoyager',
+					'GalaxyWanderer', 'AstroTrailblazer', 'NebulaDrifter', 'OrbitChaser', 'StellarRookie'
+				];
+				
+				for (let i = leaderboard.length; i < limit; i++) {
+					const starterScore = limit - i; // 10, 9, 8, 7, 6, 5, 4, 3, 2, 1
+					leaderboard.push({
+						username: starterNames[i] || `Starter${i + 1}`,
+						score: starterScore,
+						rank: i + 1
+					});
+				}
+			}
+			
 			return leaderboard;
 		} catch (error) {
 			console.error('Error fetching leaderboard:', error);
-			return [];
+			// Return starter leaderboard even on error
+			const starterNames = [
+				'RocketPioneer', 'MoonExplorer', 'StarSeeker', 'CosmicDreamer', 'SpaceVoyager',
+				'GalaxyWanderer', 'AstroTrailblazer', 'NebulaDrifter', 'OrbitChaser', 'StellarRookie'
+			];
+			
+			return Array.from({ length: limit }, (_, i) => ({
+				username: starterNames[i] || `Starter${i + 1}`,
+				score: limit - i,
+				rank: i + 1
+			}));
 		}
 	}
 
@@ -102,8 +130,19 @@ export class RedisService {
 			const username = user?.username || 'Anonymous';
 			const memberKey = `${this.userId}:${username}`;
 			
-			const rank = await this.redis.zRevRank(`${this.subredditId}:leaderboard`, memberKey);
-			return rank !== null ? rank + 1 : null; // Convert 0-based to 1-based ranking
+			// Get the normal rank (0-based, low to high scores)
+			const normalRank = await this.redis.zRank(`${this.subredditId}:leaderboard`, memberKey);
+			
+			if (normalRank === null || normalRank === undefined) {
+				return null; // User not found in leaderboard
+			}
+			
+			// Get total count of members to calculate reverse rank
+			const totalCount = await this.redis.zCard(`${this.subredditId}:leaderboard`);
+			
+			// Calculate reverse rank (high to low scores) and convert to 1-based
+			const reverseRank = totalCount - normalRank - 1;
+			return reverseRank + 1; // Convert 0-based to 1-based ranking
 		} catch (error) {
 			console.error('Error fetching user rank:', error);
 			return null;
