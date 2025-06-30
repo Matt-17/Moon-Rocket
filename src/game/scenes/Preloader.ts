@@ -14,19 +14,23 @@ export class Preloader extends Scene {
 		// Note: Adjust frameWidth and frameHeight based on your actual sprite sheet dimensions
 		// If you only have a single image, change this back to: this.load.image('rocket', 'rocket.png');
 		this.load.spritesheet('rocket', 'rocket.png', { frameWidth: 40, frameHeight: 18 });
-		
+
 		// Debug: Log when the rocket sprite sheet is loaded
 		this.load.on('filecomplete-spritesheet-rocket', (key: string) => {
 			console.log('Rocket spritesheet loaded:', key);
 		});
 
+		// load start button start.png -> 3 buttons vertical 96 x 40; first is normal, then hover, then pressed
+		this.load.spritesheet('start', 'start.png', { frameWidth: 96, frameHeight: 40 });
+
+
 		this.load.image('background', 'background.png');
 		this.load.image('moon', 'moon.png');
-		
+
 		// load buildings spritesheet
 		this.load.spritesheet('buildings', 'buildings.png', { frameWidth: 50, frameHeight: 101 });
-		
-		this.load.image('candle_red', 'candle_red.png');		
+
+		this.load.image('candle_red', 'candle_red.png');
 		this.load.image('candle_green', 'candle_green.png');
 		this.load.image('background', 'background_1.png');
 		this.load.image('particle_buy', 'particle_buy.png');
@@ -62,10 +66,33 @@ export class Preloader extends Scene {
 		});
 	}
 
+	createStartAnimations() {
+		this.anims.create({
+			key: 'start_normal',
+			frames: this.anims.generateFrameNumbers('start', { start: 0, end: 0 }),
+			frameRate: 10,
+			repeat: -1
+		});
+
+		this.anims.create({
+			key: 'start_hover',
+			frames: this.anims.generateFrameNumbers('start', { start: 1, end: 1 }),
+			frameRate: 10,
+			repeat: -1
+		});
+
+		this.anims.create({
+			key: 'start_pressed',
+			frames: this.anims.generateFrameNumbers('start', { start: 2, end: 2 }),
+			frameRate: 10,
+			repeat: -1
+		});
+	}
 	create() {
 		// Create rocket animations globally
 		this.createRocketAnimations();
-		
+		this.createStartAnimations();
+
 		//	The create function is called after the preload function has finished loading all assets.
 		this.scene.start('Menu');
 	}
