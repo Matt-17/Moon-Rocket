@@ -21,7 +21,9 @@
     "vite": "vite",
     "dev": "vite build --watch",
     "build": "vite build --config ./vite.config.ts",
-    "upload": "devvit upload"
+    "upload": "devvit upload",
+    "publish": "devvit publish --public",
+    "play": "devvit playtest r/devMatt"
   },
   "devvit": {
     "playtest": {
