@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import type { PlayerStats } from '../../shared/messages.js';
+import type { PlayerStats, LeaderboardData } from '../../shared/messages.js';
 import eventEmitter from '../events/EventEmitter.js';
 import { PostMessageManager } from '../events/PostMessageManager.js';
 
@@ -15,16 +15,19 @@ export class Boot extends Scene {
 			this.registry.set('playerStats', {
 				highscore: 0,
 				attempts: 0,
+				rank: null
 			});
+			this.registry.set('leaderboard', []);
 			this.scene.start('Preloader');
 		} else {
-			eventEmitter.once('update:player:stats', this.setPlayerStats, this);
-			PostMessageManager.send({ type: 'request:player:stats' });
+			eventEmitter.once('update:leaderboard', this.setLeaderboardData, this);
+			PostMessageManager.send({ type: 'request:leaderboard' });
 		}
 	}
 
-	setPlayerStats(data: PlayerStats) {
-		this.registry.set('playerStats', data);
+	setLeaderboardData(data: LeaderboardData) {
+		this.registry.set('playerStats', data.userStats);
+		this.registry.set('leaderboard', data.leaderboard);
 		this.scene.start('Preloader');
 	}
 }
