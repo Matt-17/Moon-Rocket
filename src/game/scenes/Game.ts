@@ -8,7 +8,16 @@ export class Game extends Phaser.Scene {
 	buildingsFar!: Phaser.GameObjects.Group;
 	buildingsNear!: Phaser.GameObjects.Group;
 	thrust!: Phaser.GameObjects.Particles.ParticleEmitter;
+	buy!: Phaser.GameObjects.Particles.ParticleEmitter;
+	diamonds!: Phaser.GameObjects.Particles.ParticleEmitter;
 	rocketFlap!: Phaser.Tweens.TweenChain;
+	stars1!: Phaser.GameObjects.TileSprite;
+	stars2!: Phaser.GameObjects.TileSprite;
+	stars3!: Phaser.GameObjects.TileSprite;
+
+	buildings1!: Phaser.GameObjects.TileSprite;
+	buildings2!: Phaser.GameObjects.TileSprite;
+	buildings3!: Phaser.GameObjects.TileSprite;
 
 	// Game state
 	internalScore!: number; // Internal float score that increases linearly
@@ -108,7 +117,7 @@ export class Game extends Phaser.Scene {
 			10,
 			this.scale.height,
 			0xff0000,
-			0.5
+			0
 		);
 		this.scores.add(trigger);
 	}
@@ -140,6 +149,20 @@ export class Game extends Phaser.Scene {
 			.setScrollFactor(0)
 			.setDisplaySize(this.scale.width, this.scale.height);
 
+		this.stars1 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars1')
+			.setScrollFactor(0)
+			.setOrigin(0, 0);
+		this.stars2 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars2')
+			.setScrollFactor(0)
+			.setOrigin(0, 0);
+		this.stars3 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'stars3')
+			.setScrollFactor(0)
+			.setOrigin(0, 0);
+
+		this.buildings1 = this.add.tileSprite(0, 0, this.scale.width, this.scale.height, 'buildings')
+			.setScrollFactor(0)
+			.setOrigin(0, 0);
+
 		this.add.image(this.scale.width - 50, 50, 'moon')
 			.setScrollFactor(0);
 
@@ -160,16 +183,44 @@ export class Game extends Phaser.Scene {
 		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
 
 		this.thrust = this.add
-			.particles(0, 0, 'particle_buy', {
-				quantity: { min: 1, max: 3 },
+			.particles(0, 0, 'star', {
+				quantity: { min: 5, max: 15 },
 				lifespan: 1200,
 				speedX: { min: -120, max: 120 },
 				speedY: { min: -140, max: -60 },
 				gravityY: 400,
+				rotate: { min: 0, max: 360 }, // should be more random  and rotate
+				alpha: { start: 1, end: 0 },
+			})
+			.startFollow(this.rocket, -this.rocket.width * 0.1, 0)
+			.stop();
+
+		// buy is one single particle "buy"
+		this.buy = this.add
+			.particles(0, 0, 'buy', {
+				quantity: 1,
+				lifespan: 500,
+				gravityY: 400,
+				speedX: { min: -50, max: 50 },
+				speedY: { min: -40, max: -40 },
 				scale: { start: 1, end: 0.2 },
 				alpha: { start: 1, end: 0 },
 			})
-			.startFollow(this.rocket, -this.rocket.width * 0.6, 0)
+			.startFollow(this.rocket, -this.rocket.width * 0.2, 0)
+			.stop();
+
+		// diamons is 3-8 diamonds
+		this.diamonds = this.add
+			.particles(0, 0, 'diamond', {
+				quantity: { min: 3, max: 8 },
+				lifespan: 2000,
+				gravityY: 400,
+				rotate: { min: 0, max: 360 }, // should be more random  and rotate
+				scale: { min: 0.4, max: 0.8 },
+				speedX: { min: -120, max: 120 },
+				speedY: { min: -140, max: -60 },
+			})
+			.startFollow(this.rocket, 0, 0)
 			.stop();
 
 		(this.rocket.body as Phaser.Physics.Arcade.Body)
@@ -254,6 +305,7 @@ export class Game extends Phaser.Scene {
 
 		// Create thrust particles
 		this.thrust.explode();
+		this.buy.explode();
 
 		this.rocketFlap.restart();
 		return;
@@ -365,6 +417,9 @@ export class Game extends Phaser.Scene {
 			ease: 'Power2'
 		});
 
+		this.diamonds.explode();
+		this.sound.play('explosion', { volume: 0.3 });
+
 		// Show game over after short delay
 		this.time.delayedCall(800, () => {
 			this.scene.start('GameOver', { score: this.getDisplayScore() });
@@ -387,6 +442,13 @@ export class Game extends Phaser.Scene {
 
 	// MARK: - Update
 	override update() {
+		// Always animate stars, even when game is not started
+		this.stars1.tilePositionX += 0.011;
+		this.stars2.tilePositionX += 0.013;
+		this.stars3.tilePositionX += 0.017;
+
+		this.buildings1.tilePositionX += 0.1;
+
 		if (this.gameOver || !this.gameStarted) return;
 
 		// New candle spawning based on rocket's X position + one screen width
