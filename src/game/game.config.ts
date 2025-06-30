@@ -9,7 +9,7 @@ export const gameConfig: Types.Core.GameConfig = {
 	type: Phaser.AUTO,
 	autoFocus: true,
 	transparent: false,
-    backgroundColor: '#3498db', // hier Farbe setzen
+    backgroundColor: '#000000', // hier Farbe setzen
 	scale: {
 	  mode: Phaser.Scale.FIT,
 	  autoCenter: Phaser.Scale.CENTER_BOTH,

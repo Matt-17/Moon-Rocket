@@ -8,10 +8,10 @@ export class Background {
 	private buildings!: Phaser.GameObjects.TileSprite;
 
 	// Parallax speeds (pixels per second)
-	private stars1Speed = 5;
-	private stars2Speed = 8;
-	private stars3Speed = 12;
-	private buildingsSpeed = 25;
+	private stars1Speed = 0.2;
+	private stars2Speed = 0.375;
+	private stars3Speed = 0.575;
+	private buildingsSpeed = 12;
 
 	// Registry keys for persistent positions
 	private static readonly REGISTRY_KEYS = {
@@ -29,30 +29,33 @@ export class Background {
 
 	private create() {
 		// Create main background sprite
-		this.background = this.scene.add.image(
-			this.scene.scale.width / 2, 
-			this.scene.scale.height / 2, 
-			'background'
-		)
+		this.background = this.scene.add
+            .image(
+                this.scene.scale.width / 2, 
+                this.scene.scale.height / 2, 
+                'background'
+            )
 			.setScrollFactor(0)
 			.setDisplaySize(this.scene.scale.width, this.scene.scale.height);
 
 		// Create star layers (parallax background)
-		this.stars1 = this.scene.add.tileSprite(
-			0, 0, 
-			this.scene.scale.width, 
-			this.scene.scale.height, 
-			'stars1'
-		)
+		this.stars1 = this.scene.add
+            .tileSprite(
+                0, 0, 
+                this.scene.scale.width, 
+                this.scene.scale.height, 
+                'stars1'
+            )
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
 
-		this.stars2 = this.scene.add.tileSprite(
-			0, 0, 
-			this.scene.scale.width, 
-			this.scene.scale.height, 
-			'stars2'
-		)
+		this.stars2 = this.scene.add
+            .tileSprite(
+                0, 0, 
+                this.scene.scale.width, 
+                this.scene.scale.height, 
+                'stars2'
+            )
 			.setScrollFactor(0)
 			.setOrigin(0, 0);
 
@@ -109,6 +112,12 @@ export class Background {
 		// Convert delta from milliseconds to seconds
 		const deltaSeconds = delta / 1000;
 		
+        // log the delta
+        console.log('delta', delta);
+        console.log('deltaSeconds', deltaSeconds);
+        console.log('stars1Speed', this.stars1Speed);
+        console.log('stars1Speed', this.stars1Speed * deltaSeconds);
+
 		// Move backgrounds based on time, not frames
 		this.stars1.tilePositionX += this.stars1Speed * deltaSeconds;
 		this.stars2.tilePositionX += this.stars2Speed * deltaSeconds;
