@@ -33,6 +33,8 @@ export class Game extends Phaser.Scene {
 
 	private readonly rocketThrustPower = 200;
 
+
+
 	private readonly candlesPerWeek = 5;
 	private readonly candleWidth = 30;
 	private readonly weekendGapMin = 2;
@@ -251,7 +253,7 @@ export class Game extends Phaser.Scene {
 			this.startGame();
 		}
 
-		// Make rocket thrust
+		// Make rocket thrust with smoother physics
 		const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
 		rocketBody.setVelocityY(-this.rocketThrustPower);
 		rocketBody.setVelocityX(this.rocketSpeed); // Move rocket forward
