@@ -18,7 +18,7 @@ Devvit.configure({
 Devvit.addMenuItem(createPost);
 
 Devvit.addCustomPostType({
-	name: 'Flappy Rockets Game',
+	name: 'Moon Rocket',
 	height: 'regular',
 	render: (context: Devvit.Context) => {
 		const redisService = new RedisService(context);
