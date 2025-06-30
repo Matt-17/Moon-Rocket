@@ -10,7 +10,21 @@ export class Preloader extends Scene {
 		//	This way we don't have to specify the path for each asset repeatedly.
 		this.load.setPath('assets/');
 
-		this.load.image('rocket', 'rocket.png');
+		// Load rocket as spritesheet instead of single image
+		// Note: Adjust frameWidth and frameHeight based on your actual sprite sheet dimensions
+		// If you only have a single image, change this back to: this.load.image('rocket', 'rocket.png');
+		this.load.spritesheet('rocket', 'rocket.png', { frameWidth: 40, frameHeight: 18 });
+		
+		// Debug: Log when the rocket sprite sheet is loaded
+		this.load.on('filecomplete-spritesheet-rocket', (key: string) => {
+			console.log('Rocket spritesheet loaded:', key);
+		});
+
+		this.load.image('background', 'background.png');
+		
+		// load buildings spritesheet
+		this.load.spritesheet('buildings', 'buildings.png', { frameWidth: 50, frameHeight: 101 });
+		
 		this.load.image('candle_red', 'candle_red.png');
 		this.load.image('candle_green', 'candle_green.png');
 		this.load.image('background', 'background_1.png');
@@ -20,7 +34,37 @@ export class Preloader extends Scene {
 		this.load.font('Kenney', 'Kenney_Mini_Square.ttf');
 	}
 
+	// MARK: - Create rocket animations
+	createRocketAnimations() {
+		// Create idle animation (frames 0-1)
+		this.anims.create({
+			key: 'rocket_idle',
+			frames: this.anims.generateFrameNumbers('rocket', { start: 0, end: 1 }),
+			frameRate: 10,
+			repeat: -1
+		});
+
+		// Create thrust animation (frame 2)
+		this.anims.create({
+			key: 'rocket_thrust',
+			frames: this.anims.generateFrameNumbers('rocket', { start: 2, end: 2 }),
+			frameRate: 8,
+			repeat: -1
+		});
+
+		// Create crash animation (frame 3)
+		this.anims.create({
+			key: 'rocket_crash',
+			frames: this.anims.generateFrameNumbers('rocket', { start: 3, end: 3 }),
+			frameRate: 6,
+			repeat: -1
+		});
+	}
+
 	create() {
+		// Create rocket animations globally
+		this.createRocketAnimations();
+		
 		//	The create function is called after the preload function has finished loading all assets.
 		this.scene.start('Menu');
 	}
