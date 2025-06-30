@@ -26,14 +26,18 @@ export class Menu extends Scene {
 		// Highscore using SUBTITLE style
 		this.add
 			.text(350, 10, `Highscore: ${highscore}`, TextStyles.SUBTITLE)
-			.setOrigin(0.5,0)
+			.setOrigin(0.5, 0)
 			.setResolution(4);
 
 		// rocket
 		this.add.image(490, 25, 'rocket').setOrigin(0.5, 0).setScale(1);
 
-		new StartButton(this, 100, 150)
-			.onClick(() => this.scene.start('Game'));
+		new StartButton(this, 100, 150).onClick(() => this.startGame());
+		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
+	}
+
+	startGame() {
+		this.scene.start('Game');
 	}
 
 	override update(_time: number, delta: number) {

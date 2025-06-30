@@ -23,23 +23,104 @@ export class Game extends Phaser.Scene {
 
 	// Stock chart simulation
 	candleCount!: number; // Track how many candles in current week
-	lastCandleY!: number; // Y position of last candle for continuity
 	nextCandleX!: number;
 
 	// Physics constants
-	rocketSpeed = 200;
-	rocketPower = 200;
-	candlesPerWeek = 5;
-	candleWidth = 30;
-	weekendGapMin = 2;
-	weekendGapMax = 4;
-	weekendTicks = 0;
-	lastClose = 0;
-	trendStrengthMin = 10;
-	trendStrengthMax = 50;
+	private readonly minRocketSpeed = 200;
+	private readonly maxRocketSpeed = 500;
+	private readonly rocketSpeedIncrease = 5;
+	private rocketSpeed = this.minRocketSpeed;
+
+	private readonly rocketThrustPower = 200;
+
+	private readonly candlesPerWeek = 5;
+	private readonly candleWidth = 30;
+	private readonly weekendGapMin = 2;
+	private readonly weekendGapMax = 5;
+	private readonly trendStrengthMin = 10;
+	private readonly trendStrengthMax = 50;
+	private weeksDone = 0;
+	private lastClose = 0;
 
 	constructor() {
 		super('Game');
+	}
+
+	init() {
+		// Initialize game state
+		this.internalScore = 0;
+		this.gameStarted = false;
+		this.gameOver = false;
+		this.candleCount = 0;
+		this.rocketSpeed = this.minRocketSpeed;
+		this.lastClose = this.scale.height / 2;
+		this.weeksDone = 0;
+	}
+
+	// MARK: - Create game
+	create() {
+		// Set up world bounds
+		this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
+
+		// Create background component
+		this.background = new Background(this);
+
+		// Create pipes group (without physics - we'll handle physics individually)
+		this.candles = this.physics.add.staticGroup();
+		this.scores = this.physics.add.staticGroup();
+
+		// Create rocket (positioned at 25% of the screen width)
+		this.rocket = this.physics.add
+			.sprite(this.scale.width * 0.25, this.scale.height / 2, 'rocket')
+			.setRotation(0)
+			.play('rocket_idle');
+
+		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
+		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
+
+		(this.rocket.body as Phaser.Physics.Arcade.Body)
+			.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
+			.setOffset(10, 3);
+
+		this.rocketFlap = this.tweens.chain({
+			targets: this.rocket,
+			paused: true,
+			persist: true,
+			tweens: [
+				{ scale: 1.2, rotation: -0.3, duration: 50 },
+				{ scale: 1, duration: 150, ease: 'Power2' },
+				{ rotation: 0, duration: 250, ease: 'Power2' },
+
+			]
+		});
+
+		this.createParticles();
+
+		this.nextCandleX = this.scale.width + this.candleWidth;
+
+		// Create UI
+		this.scoreText = this.add
+			.text(16, 16, 'Floor: 0', TextStyles.SCORE)
+			.setResolution(4)
+			.setScrollFactor(0)
+			.setDepth(1000);
+
+		// Add start instructions
+		const startText = this.add
+			.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
+			.setOrigin(0.5)
+			.setResolution(4);
+
+		// Store start text to remove it later
+		this.data.set('startText', startText);
+
+		// Input handling
+		this.input.on('pointerdown', this.thrustRocket, this);
+		this.input.keyboard?.on('keydown-SPACE', this.thrustRocket, this);
+
+		// Ensure physics world is running	
+		this.cameras.main.startFollow(this.rocket, false, 1, 0, - this.scale.width / 4, 0);
+		this.physics.world.pause();
 	}
 
 	// MARK: - Calculate exponential display score from internal linear score
@@ -118,44 +199,7 @@ export class Game extends Phaser.Scene {
 		this.scores.add(trigger);
 	}
 
-	// MARK: - Increase game difficulty
-	increaseDifficulty() {
-		this.rocketSpeed = Math.min(this.rocketSpeed + 20, 350);
-
-		// Update rocket's forward speed
-		const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
-		rocketBody.setVelocityX(this.rocketSpeed);
-	}
-
-	// MARK: - Create game
-	create() {
-		// Initialize game state
-		this.internalScore = 0;
-		this.gameStarted = false;
-		this.gameOver = false;
-		this.candleCount = 0;
-		this.lastCandleY = this.scale.height / 2; // Start in middle of screen
-		this.lastClose = this.scale.height / 2;   // Start-Close in der Mitte
-
-		// Set up world bounds
-		this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
-
-		// Create background component
-		this.background = new Background(this);
-
-		// Create pipes group (without physics - we'll handle physics individually)
-		this.candles = this.physics.add.staticGroup();
-		this.scores = this.physics.add.staticGroup();
-
-		// Create rocket (positioned at 25% of the screen width)
-		this.rocket = this.physics.add
-			.sprite(this.scale.width * 0.25, this.scale.height / 2, 'rocket')
-			.setRotation(0)
-			.play('rocket_idle');
-
-		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
-		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
-
+	createParticles() {
 		this.thrustParticles = this.add
 			.particles(0, 0, 'star', {
 				quantity: { min: 5, max: 15 },
@@ -182,7 +226,6 @@ export class Game extends Phaser.Scene {
 			.startFollow(this.rocket, -this.rocket.width * 0.2, 0)
 			.stop();
 
-		// diamons is 3-8 diamonds
 		this.diamondParticles = this.add
 			.particles(0, 0, 'diamond', {
 				quantity: { min: 3, max: 8 },
@@ -195,47 +238,6 @@ export class Game extends Phaser.Scene {
 			})
 			.startFollow(this.rocket, 0, 0)
 			.stop();
-
-		(this.rocket.body as Phaser.Physics.Arcade.Body)
-			.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
-			.setOffset(10, 3);
-
-		this.rocketFlap = this.tweens.chain({
-			targets: this.rocket,
-			paused: true,
-			persist: true,
-			tweens: [
-				{ scale: 1.2, rotation: -0.3, duration: 50 },
-				{ scale: 1, duration: 150, ease: 'Power2' },
-				{ rotation: 0, duration: 250, ease: 'Power2' },
-
-			]
-		});
-
-		this.nextCandleX = this.scale.width + this.candleWidth;
-
-		// Create UI
-		this.scoreText = this.add
-			.text(16, 16, 'Floor: 0', TextStyles.SCORE)
-			.setResolution(4)
-			.setScrollFactor(0);
-
-		// Add start instructions
-		const startText = this.add
-			.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
-			.setOrigin(0.5)
-			.setResolution(4);
-
-		// Store start text to remove it later
-		this.data.set('startText', startText);
-
-		// Input handling
-		this.input.on('pointerdown', this.thrustRocket, this);
-		this.input.keyboard?.on('keydown-SPACE', this.thrustRocket, this);
-
-		// Ensure physics world is running	
-		this.cameras.main.startFollow(this.rocket, false, 1, 0, - this.scale.width / 4, 0);
-		this.physics.world.pause();
 	}
 
 	// MARK: - Flap
@@ -251,7 +253,7 @@ export class Game extends Phaser.Scene {
 
 		// Make rocket thrust
 		const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
-		rocketBody.setVelocityY(-this.rocketPower);
+		rocketBody.setVelocityY(-this.rocketThrustPower);
 		rocketBody.setVelocityX(this.rocketSpeed); // Move rocket forward
 		// Play sound
 		this.sound.play('flap', { volume: 0.3 });
@@ -279,7 +281,6 @@ export class Game extends Phaser.Scene {
 
 		// Ensure physics world is running
 		this.physics.world.resume();
-		console.log('Physics world started, isPaused:', this.physics.world.isPaused);
 
 		// Reset rocket to idle animation
 		this.rocket.play('rocket_idle');
@@ -303,11 +304,11 @@ export class Game extends Phaser.Scene {
 		if (this.gameOver) return;
 
 		// Skip candle spawn during weekend
-		if (this.weekendTicks > 0) {
-			this.weekendTicks--;
-			this.nextCandleX += this.candleWidth;
-			return;
-		}
+		//	if (this.weekendTicks > 0) {
+		//		this.weekendTicks--;
+		//		this.nextCandleX += this.candleWidth;
+		//		return;
+		//	}
 
 		this.candleCount++;
 
@@ -323,11 +324,11 @@ export class Game extends Phaser.Scene {
 
 		if (this.candleCount >= this.candlesPerWeek) {
 			this.candleCount = 0; // Reset for new week
-			this.weekendTicks = Phaser.Math.Between(
+			const weekendTicks = Phaser.Math.Between(
 				this.weekendGapMin,
 				this.weekendGapMax
 			);
-			this.nextCandleX += this.weekendTicks * this.candleWidth;
+			this.nextCandleX += weekendTicks * this.candleWidth * 2;
 		}
 	}
 
@@ -367,17 +368,23 @@ export class Game extends Phaser.Scene {
 	}
 
 	// MARK: - Hit score
-	hitScore(_: any, score: any) {
+	hitScore(_: any, scoreCollider: any) {
 		this.internalScore += 1; // Increase internal score linearly
 		const displayScore = this.getDisplayScore();
 		this.scoreText.setText(`Floor: ${displayScore}`);
 
 		// Increase internal score linearly
 		if (this.internalScore % 5 === 0) {
-			this.increaseDifficulty();
+			this.rocketSpeed = Math.min(this.rocketSpeed + this.rocketSpeedIncrease, this.maxRocketSpeed);
+
+			// Update rocket's forward speed
+			const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
+			rocketBody.setVelocityX(this.rocketSpeed);
+
+			this.weeksDone++;
 		}
 
-		score.destroy();
+		scoreCollider.destroy();
 	}
 
 	// MARK: - Update

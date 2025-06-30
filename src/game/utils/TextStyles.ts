@@ -84,9 +84,11 @@ export class TextStyles {
   /** Kleiner Fließtext */
   public static readonly SMALL: Phaser.Types.GameObjects.Text.TextStyle = {
     fontFamily: 'Kenney',
-    fontSize: '18px',
+    fontSize: '16px',
     color: '#cccccc',
     align: 'center',
+    stroke: '#333333',
+    strokeThickness: 2,
   };
 
   // =============================================================================
