@@ -16,12 +16,13 @@ export const gameConfig: Types.Core.GameConfig = {
 	  width: 560,
 	  height: 240,
 	  parent: 'core',
+	  autoRound: false,
 	  fullscreenTarget: 'core',
 	},
 	render: {
 		pixelArt: true, // Ensure crisp pixel rendering
 		antialias: false,
-		roundPixels: true // Round pixel positions for crisp edges
+		roundPixels: false // Round pixel positions for crisp edges
 	},
 	physics: {
 		default: 'arcade',
