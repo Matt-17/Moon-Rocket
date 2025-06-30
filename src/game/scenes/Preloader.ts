@@ -10,7 +10,11 @@ export class Preloader extends Scene {
 		//	This way we don't have to specify the path for each asset repeatedly.
 		this.load.setPath('assets/')
 
-		this.load.atlasXML('characters', 'characters.png', 'characters.xml')
+		this.load.image('rocket', 'rocket.png')
+		this.load.image('candle_red', 'candle_red.png')
+		this.load.image('candle_green', 'candle_green.png')
+		this.load.image('background', 'background_1.png')
+		this.load.image('particle_buy', 'particle_buy.png')
 		this.load.audio('hit', 'hit.ogg')
 		this.load.font('Kenney', 'Kenney_Mini_Square.ttf')
 	}
