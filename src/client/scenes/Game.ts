@@ -1,4 +1,3 @@
-import { Tweens } from "phaser";
 import { Background } from "../components/Background.js";
 import { TextStyles } from "../utils/TextStyles.js";
 
@@ -32,8 +31,6 @@ export class Game extends Phaser.Scene {
 	private rocketSpeed = this.minRocketSpeed;
 
 	private readonly rocketThrustPower = 200;
-
-
 
 	private readonly candlesPerWeek = 5;
 	private readonly candleWidth = 30;
@@ -253,7 +250,7 @@ export class Game extends Phaser.Scene {
 			this.startGame();
 		}
 
-		// Make rocket thrust with smoother physics
+		// Make rocket thrust
 		const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
 		rocketBody.setVelocityY(-this.rocketThrustPower);
 		rocketBody.setVelocityX(this.rocketSpeed); // Move rocket forward

@@ -1,9 +1,9 @@
 {
-	"extends": "@devvit/public-api/devvit.tsconfig.json",
-	"compilerOptions": {
-		"noEmit": true
-	},
-	"include": [
-		"./src/**/*"
+	"files": [],
+	"references": [
+		{ "path": "./tools/tsconfig.client.json" },
+		{ "path": "./tools/tsconfig.server.json" },
+		{ "path": "./tools/tsconfig.shared.json" },
+		{ "path": "./tools/tsconfig.vite.json" }
 	]
 }

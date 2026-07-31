@@ -16,7 +16,6 @@ export const gameConfig: Types.Core.GameConfig = {
 	  width: 560,
 	  height: 240,
 	  parent: 'core',
-	  autoRound: false,
 	  fullscreenTarget: 'core',
 	},
 	render: {

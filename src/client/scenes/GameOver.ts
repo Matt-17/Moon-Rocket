@@ -1,10 +1,8 @@
-import { PostMessageManager } from '../events/PostMessageManager.js';
-import { Scene } from 'phaser';
+import { showToast } from '@devvit/web/client';
+import { saveScore } from '../api.js';
 import { StartButton } from '../components/StartButton.js';
 import { Background } from '../components/Background.js';
 import { TextStyles } from '../utils/TextStyles.js'
-import eventEmitter from '../events/EventEmitter.js';
-import type { LeaderboardData } from '../../shared/messages.js';
 
 export class GameOver extends Phaser.Scene {
 	score = 0
@@ -19,7 +17,14 @@ export class GameOver extends Phaser.Scene {
 	}
 
 	create() {
-		PostMessageManager.send({ type: 'save:score', data: { score: this.score } });
+		saveScore(this.score).then((result) => {
+			if (result) {
+				this.registry.set('playerStats', result.stats);
+				if (result.newBest !== null) {
+					showToast(`Hooray, new personal best: ${result.newBest}!`);
+				}
+			}
+		});
 
 		// Create animated background
 		this.background = new Background(this);
@@ -95,28 +100,7 @@ export class GameOver extends Phaser.Scene {
 	}
 
 	goToMenu() {
-		// Request fresh leaderboard data before going to menu
-		eventEmitter.once('update:leaderboard', this.updateLeaderboardAndGoToMenu, this);
-		PostMessageManager.send({ type: 'request:leaderboard' });
-	}
-
-	updateLeaderboardAndGoToMenu(data: LeaderboardData) {
-		// Update registry with fresh data
-		this.registry.set('playerStats', data.userStats);
-		this.registry.set('leaderboard', data.leaderboard);
-		
-		// Now transition to menu with updated data
 		this.cameras.main.fade(200, 0, 0, 0);
 		this.time.delayedCall(200, () => this.scene.start('Menu'));
-	}
-
-	override update(_time: number, delta: number) {
-		// Animate background
-		this.background.update(delta);
-	}
-
-	shutdown() {
-		// Clean up event listeners to prevent memory leaks
-		eventEmitter.off('update:leaderboard', this.updateLeaderboardAndGoToMenu, this);
 	}
 }
