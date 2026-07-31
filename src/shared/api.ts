@@ -13,11 +13,20 @@ export interface LeaderboardEntry {
 	rank: number
 }
 
+//	Present when the current post is a daily challenge: everyone plays the
+//	same seeded candle sequence and competes on a per-day leaderboard.
+export type DailyInfo = {
+	//	ISO date (YYYY-MM-DD) identifying the challenge and seeding the RNG.
+	date: string
+	leaderboard: LeaderboardEntry[]
+}
+
 //	Initial payload loaded by the Boot scene: the player's own stats plus
-//	the subreddit's Top 10 leaderboard.
+//	the subreddit's Top 10 leaderboard (and daily info on daily posts).
 export type InitResponse = {
 	stats: PlayerStats
 	leaderboard: LeaderboardEntry[]
+	daily: DailyInfo | null
 }
 
 export type SaveScoreRequest = {
@@ -27,5 +36,7 @@ export type SaveScoreRequest = {
 export type SaveScoreResponse = {
 	//	The new personal best, or null if the submitted score did not beat it.
 	newBest: number | null
+	//	Same, for today's challenge; null also when this is not a daily post.
+	dailyNewBest: number | null
 	stats: PlayerStats
 }

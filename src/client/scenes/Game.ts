@@ -1,6 +1,7 @@
 import { Background } from "../components/Background.js";
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from "../constants.js";
 import { TextStyles } from "../utils/TextStyles.js";
+import type { DailyInfo } from "../../shared/api.js";
 
 export class Game extends Phaser.Scene {
 	// Game objects
@@ -41,6 +42,7 @@ export class Game extends Phaser.Scene {
 	private readonly trendStrengthMax = 50;
 	private weeksDone = 0;
 	private lastClose = 0;
+	private rng!: Phaser.Math.RandomDataGenerator;
 
 	constructor() {
 		super('Game');
@@ -55,6 +57,13 @@ export class Game extends Phaser.Scene {
 		this.rocketSpeed = this.minRocketSpeed;
 		this.lastClose = GAME_HEIGHT / 2;
 		this.weeksDone = 0;
+
+		//	On daily challenge posts the candle sequence is generated from a
+		//	per-day seed, so every player faces the same market.
+		const daily: DailyInfo | null = this.registry.get('daily');
+		this.rng = new Phaser.Math.RandomDataGenerator(
+			daily ? [`moonrocket-${daily.date}`] : [`${Math.random()}`]
+		);
 	}
 
 	// MARK: - Create game
@@ -151,7 +160,7 @@ export class Game extends Phaser.Scene {
 		const openY = this.lastClose;
 
 		// 1) Richtung wählen
-		let goDown = Phaser.Math.Between(0, 1) === 0;
+		let goDown = this.rng.between(0, 1) === 0;
 
 		// 2) Genug Platz für trendStrengthMin?
 		const roomUp = openY - minY;
@@ -161,7 +170,7 @@ export class Game extends Phaser.Scene {
 		if (!goDown && roomUp < this.trendStrengthMin) goDown = true;
 
 		// 3) Zufällige Stärke zwischen min und max
-		const chosen = Phaser.Math.Between(this.trendStrengthMin, this.trendStrengthMax);
+		const chosen = this.rng.between(this.trendStrengthMin, this.trendStrengthMax);
 
 		// 4) Falls zu weit, kürzen
 		const maxAllowed = goDown ? roomDown : roomUp;
@@ -337,7 +346,7 @@ export class Game extends Phaser.Scene {
 
 		if (this.candleCount >= this.candlesPerWeek) {
 			this.candleCount = 0; // Reset for new week
-			const weekendTicks = Phaser.Math.Between(
+			const weekendTicks = this.rng.between(
 				this.weekendGapMin,
 				this.weekendGapMax
 			);

@@ -9,7 +9,7 @@ export async function fetchInitData(): Promise<InitResponse> {
 		return await res.json();
 	} catch {
 		//	Outside of Reddit (e.g. opening game.html directly) there is no server.
-		return { stats: { highscore: 0, attempts: 0, rank: null }, leaderboard: [] };
+		return { stats: { highscore: 0, attempts: 0, rank: null }, leaderboard: [], daily: null };
 	}
 }
 

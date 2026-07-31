@@ -29,8 +29,23 @@
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/post-create"
+      },
+      {
+        "label": "Create Daily Challenge Post",
+        "description": "Creates today's Moon Rocket daily challenge post",
+        "location": "subreddit",
+        "forUserType": "moderator",
+        "endpoint": "/internal/menu/daily-post-create"
       }
     ]
+  },
+  "scheduler": {
+    "tasks": {
+      "daily-challenge": {
+        "endpoint": "/internal/scheduler/daily-post",
+        "cron": "0 12 * * *"
+      }
+    }
   },
   "scripts": {
     "build": "vite build",

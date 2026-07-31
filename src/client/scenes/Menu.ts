@@ -3,7 +3,7 @@ import { StartButton } from '../components/StartButton.js'
 import { Background } from '../components/Background.js'
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js'
 import { TextStyles } from '../utils/TextStyles.js'
-import type { LeaderboardEntry } from '../../shared/api.js'
+import type { DailyInfo, LeaderboardEntry } from '../../shared/api.js'
 
 export class Menu extends Scene {
 	background!: Background;
@@ -22,10 +22,21 @@ export class Menu extends Scene {
 		//	or store data that you want to access in other scenes.
 		const playerStats = this.registry.get('playerStats')
 		const leaderboard: LeaderboardEntry[] = this.registry.get('leaderboard') || []
+		const daily: DailyInfo | null = this.registry.get('daily') || null
 		const { highscore, rank } = playerStats
 
 		// Logo
 		this.add.image(100, 20, 'logo').setOrigin(0.5, 0);
+
+		//	On daily challenge posts, show the date and today's board instead
+		//	of the all-time leaderboard.
+		if (daily) {
+			this.add
+				.text(100, 114, `DAILY CHALLENGE ${daily.date}`,
+					TextStyles.withAlign(TextStyles.withFontSize(TextStyles.SMALL, '10px'), 'center'))
+				.setOrigin(0.5, 0)
+				.setResolution(4);
+		}
 
 		// Your stats section
 		const yourStatsY = 10;
@@ -49,13 +60,13 @@ export class Menu extends Scene {
 		this.add.image(490, 25, 'rocket').setOrigin(0.5, 0).setScale(1);
 
 		// Leaderboard section
-		this.createLeaderboard(leaderboard);
+		this.createLeaderboard(daily ? daily.leaderboard : leaderboard, daily ? "Today's Top 10:" : 'Top 10:');
 
 		new StartButton(this, 100, 150).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
 	}
 
-	createLeaderboard(leaderboard: LeaderboardEntry[]) {
+	createLeaderboard(leaderboard: LeaderboardEntry[], title: string) {
 		const startX = 350;
 		const startY = 85;
 		const lineHeight = 12; // More compact
@@ -63,7 +74,7 @@ export class Menu extends Scene {
 
 		// Leaderboard title - smaller and more compact
 		this.add
-			.text(startX, startY, 'Top 10:', TextStyles.withFontSize(TextStyles.BODY_WHITE, '18px'))
+			.text(startX, startY, title, TextStyles.withFontSize(TextStyles.BODY_WHITE, '18px'))
 			.setOrigin(0.5, 0)
 			.setResolution(4);
 

@@ -3,6 +3,7 @@ import { serve } from '@hono/node-server';
 import type { UiResponse } from '@devvit/web/shared';
 import { context, createServer, getServerPort, reddit, redis } from '@devvit/web/server';
 import type {
+	DailyInfo,
 	InitResponse,
 	LeaderboardEntry,
 	PlayerStats,
@@ -16,6 +17,10 @@ const attemptsKey = () => `${context.subredditId}:attempts`;
 //	Leaderboard members are stored as `${userId}:${username}` (schema kept
 //	from the previous app version so existing data stays valid).
 const leaderboardKey = () => `${context.subredditId}:leaderboard`;
+//	Daily challenge: maps a post to its challenge date, plus one
+//	leaderboard zset per subreddit and day.
+const dailyPostKey = (postId: string) => `daily:${postId}`;
+const dailyLeaderboardKey = (date: string) => `${context.subredditId}:daily:${date}:leaderboard`;
 
 const STARTER_NAMES = [
 	'RocketPioneer', 'MoonExplorer', 'StarSeeker', 'CosmicDreamer', 'SpaceVoyager',
@@ -27,17 +32,22 @@ async function getLeaderboardMember(userId: string): Promise<string> {
 	return `${userId}:${username}`;
 }
 
+async function readLeaderboard(key: string, limit = 10): Promise<LeaderboardEntry[]> {
+	const entries = await redis.zRange(key, 0, limit - 1, { reverse: true, by: 'rank' });
+
+	const leaderboard: LeaderboardEntry[] = [];
+	for (const entry of entries) {
+		const [, username] = entry.member.split(':');
+		if (username) {
+			leaderboard.push({ username, score: entry.score, rank: leaderboard.length + 1 });
+		}
+	}
+	return leaderboard;
+}
+
 async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
 	try {
-		const entries = await redis.zRange(leaderboardKey(), 0, limit - 1, { reverse: true, by: 'rank' });
-
-		const leaderboard: LeaderboardEntry[] = [];
-		for (const entry of entries) {
-			const [, username] = entry.member.split(':');
-			if (username) {
-				leaderboard.push({ username, score: entry.score, rank: leaderboard.length + 1 });
-			}
-		}
+		const leaderboard = await readLeaderboard(leaderboardKey(), limit);
 
 		// Pad with starter entries so the board never looks empty
 		for (let i = leaderboard.length; i < limit; i++) {
@@ -86,18 +96,55 @@ async function getPlayerStats(userId: string): Promise<PlayerStats> {
 	};
 }
 
+//	Returns the daily challenge info if the current post is a daily post.
+async function getDailyInfo(): Promise<DailyInfo | null> {
+	const { postId } = context;
+	if (!postId) return null;
+
+	const date = await redis.get(dailyPostKey(postId));
+	if (!date) return null;
+
+	try {
+		return { date, leaderboard: await readLeaderboard(dailyLeaderboardKey(date)) };
+	} catch (error) {
+		console.error('Error fetching daily leaderboard:', error);
+		return { date, leaderboard: [] };
+	}
+}
+
+//	Creates today's daily challenge post. Used by the scheduler task and
+//	the moderator menu item.
+async function createDailyPost() {
+	const date = new Date().toISOString().slice(0, 10);
+	const prettyDate = new Date().toLocaleDateString('en-US', {
+		month: 'short',
+		day: 'numeric',
+		year: 'numeric',
+	});
+
+	const post = await reddit.submitCustomPost({
+		title: `Moon Rocket Daily Challenge — ${prettyDate}`,
+		entry: 'default',
+		postData: { daily: date },
+	});
+
+	await redis.set(dailyPostKey(post.id), date);
+	return post;
+}
+
 const api = new Hono();
 
 //	Initial data for the game: player stats plus the Top 10 leaderboard.
 //	Called by the Boot scene on startup and by GameOver before returning
-//	to the menu.
+//	to the menu. On daily posts it also carries the daily challenge info.
 api.get('/init', async (c) => {
 	const { userId } = context;
-	const [leaderboard, stats] = await Promise.all([
+	const [leaderboard, stats, daily] = await Promise.all([
 		getLeaderboard(10),
 		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null }),
+		getDailyInfo(),
 	]);
-	return c.json<InitResponse>({ stats, leaderboard });
+	return c.json<InitResponse>({ stats, leaderboard, daily });
 });
 
 //	Saves the score of a finished run. Called by the GameOver scene.
@@ -109,19 +156,33 @@ api.post('/score', async (c) => {
 		return c.json({ status: 'error', message: 'Invalid request' }, 400);
 	}
 
-	const currentHighscore = await redis.zScore(highscoresKey(), userId);
+	const [currentHighscore, dailyDate, member] = await Promise.all([
+		redis.zScore(highscoresKey(), userId),
+		context.postId ? redis.get(dailyPostKey(context.postId)) : Promise.resolve(undefined),
+		getLeaderboardMember(userId),
+	]);
+
 	const isNewBest = currentHighscore === undefined || currentHighscore === null || score > currentHighscore;
+
+	//	On daily posts the run also counts for today's board.
+	let dailyNewBest: number | null = null;
+	if (dailyDate) {
+		const currentDailyBest = await redis.zScore(dailyLeaderboardKey(dailyDate), member);
+		if (currentDailyBest === undefined || currentDailyBest === null || score > currentDailyBest) {
+			await redis.zAdd(dailyLeaderboardKey(dailyDate), { member, score });
+			dailyNewBest = score;
+		}
+	}
 
 	await Promise.all([
 		isNewBest ? redis.zAdd(highscoresKey(), { member: userId, score }) : Promise.resolve(),
-		isNewBest
-			? getLeaderboardMember(userId).then((member) => redis.zAdd(leaderboardKey(), { member, score }))
-			: Promise.resolve(),
+		isNewBest ? redis.zAdd(leaderboardKey(), { member, score }) : Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
 	]);
 
 	return c.json<SaveScoreResponse>({
 		newBest: isNewBest ? score : null,
+		dailyNewBest,
 		stats: await getPlayerStats(userId),
 	});
 });
@@ -137,13 +198,41 @@ internal.post('/menu/post-create', async (c) => {
 
 		return c.json<UiResponse>(
 			{
-				navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
+				navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id.replace(/^t3_/, '')}`,
 			},
 			200
 		);
 	} catch (error) {
 		console.error(`Error creating post: ${error}`);
 		return c.json<UiResponse>({ showToast: 'Oh no, failed to create post.' }, 400);
+	}
+});
+
+//	Backs the "Create Daily Challenge Post" subreddit menu item.
+internal.post('/menu/daily-post-create', async (c) => {
+	try {
+		const post = await createDailyPost();
+		return c.json<UiResponse>(
+			{
+				navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id.replace(/^t3_/, '')}`,
+			},
+			200
+		);
+	} catch (error) {
+		console.error(`Error creating daily post: ${error}`);
+		return c.json<UiResponse>({ showToast: 'Oh no, failed to create the daily post.' }, 400);
+	}
+});
+
+//	Scheduler task (see devvit.json): creates the daily challenge post.
+internal.post('/scheduler/daily-post', async (c) => {
+	try {
+		const post = await createDailyPost();
+		console.log(`Created daily challenge post ${post.id}`);
+		return c.json({ status: 'ok' }, 200);
+	} catch (error) {
+		console.error(`Error in daily-post scheduler task: ${error}`);
+		return c.json({ status: 'error' }, 500);
 	}
 });
 

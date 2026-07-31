@@ -25,6 +25,8 @@ export class GameOver extends Phaser.Scene {
 				this.registry.set('playerStats', result.stats);
 				if (result.newBest !== null) {
 					showToast(`Hooray, new personal best: ${result.newBest}!`);
+				} else if (result.dailyNewBest !== null) {
+					showToast(`New daily best: ${result.dailyNewBest}!`);
 				}
 			}
 		});
@@ -104,9 +106,10 @@ export class GameOver extends Phaser.Scene {
 
 	goToMenu() {
 		// Fetch fresh stats and leaderboard so the menu shows up-to-date data
-		fetchInitData().then(({ stats, leaderboard }) => {
+		fetchInitData().then(({ stats, leaderboard, daily }) => {
 			this.registry.set('playerStats', stats);
 			this.registry.set('leaderboard', leaderboard);
+			this.registry.set('daily', daily);
 
 			this.cameras.main.fade(200, 0, 0, 0);
 			this.time.delayedCall(200, () => this.scene.start('Menu'));
