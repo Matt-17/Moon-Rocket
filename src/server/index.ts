@@ -2,33 +2,102 @@ import { Hono } from 'hono';
 import { serve } from '@hono/node-server';
 import type { UiResponse } from '@devvit/web/shared';
 import { context, createServer, getServerPort, reddit, redis } from '@devvit/web/server';
-import type { SaveScoreRequest, SaveScoreResponse, StatsResponse } from '../shared/api.js';
+import type {
+	InitResponse,
+	LeaderboardEntry,
+	PlayerStats,
+	SaveScoreRequest,
+	SaveScoreResponse,
+} from '../shared/api.js';
 
 //	Redis keys are scoped per subreddit, so every community keeps its own leaderboard.
 const highscoresKey = () => `${context.subredditId}:highscores`;
 const attemptsKey = () => `${context.subredditId}:attempts`;
+//	Leaderboard members are stored as `${userId}:${username}` (schema kept
+//	from the previous app version so existing data stays valid).
+const leaderboardKey = () => `${context.subredditId}:leaderboard`;
 
-async function getPlayerStats(userId: string): Promise<StatsResponse> {
-	const [highscore, attempts] = await Promise.all([
+const STARTER_NAMES = [
+	'RocketPioneer', 'MoonExplorer', 'StarSeeker', 'CosmicDreamer', 'SpaceVoyager',
+	'GalaxyWanderer', 'AstroTrailblazer', 'NebulaDrifter', 'OrbitChaser', 'StellarRookie',
+];
+
+async function getLeaderboardMember(userId: string): Promise<string> {
+	const username = (await reddit.getCurrentUsername()) ?? 'Anonymous';
+	return `${userId}:${username}`;
+}
+
+async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
+	try {
+		const entries = await redis.zRange(leaderboardKey(), 0, limit - 1, { reverse: true, by: 'rank' });
+
+		const leaderboard: LeaderboardEntry[] = [];
+		for (const entry of entries) {
+			const [, username] = entry.member.split(':');
+			if (username) {
+				leaderboard.push({ username, score: entry.score, rank: leaderboard.length + 1 });
+			}
+		}
+
+		// Pad with starter entries so the board never looks empty
+		for (let i = leaderboard.length; i < limit; i++) {
+			leaderboard.push({ username: STARTER_NAMES[i] ?? `Starter${i + 1}`, score: limit - i, rank: i + 1 });
+		}
+
+		return leaderboard;
+	} catch (error) {
+		console.error('Error fetching leaderboard:', error);
+		return STARTER_NAMES.slice(0, limit).map((username, i) => ({
+			username,
+			score: limit - i,
+			rank: i + 1,
+		}));
+	}
+}
+
+async function getUserRank(userId: string): Promise<number | null> {
+	try {
+		const member = await getLeaderboardMember(userId);
+		const normalRank = await redis.zRank(leaderboardKey(), member);
+		if (normalRank === null || normalRank === undefined) {
+			return null;
+		}
+
+		// zRank is ascending; convert to a 1-based descending rank
+		const totalCount = await redis.zCard(leaderboardKey());
+		return totalCount - normalRank;
+	} catch (error) {
+		console.error('Error fetching user rank:', error);
+		return null;
+	}
+}
+
+async function getPlayerStats(userId: string): Promise<PlayerStats> {
+	const [highscore, attempts, rank] = await Promise.all([
 		redis.zScore(highscoresKey(), userId),
 		redis.hGet(attemptsKey(), userId),
+		getUserRank(userId),
 	]);
 
 	return {
 		highscore: Number(highscore ?? 0),
 		attempts: Number(attempts ?? 0),
+		rank,
 	};
 }
 
 const api = new Hono();
 
-//	Returns the stats of the current player. Called by the Boot scene on startup.
-api.get('/stats', async (c) => {
+//	Initial data for the game: player stats plus the Top 10 leaderboard.
+//	Called by the Boot scene on startup and by GameOver before returning
+//	to the menu.
+api.get('/init', async (c) => {
 	const { userId } = context;
-	if (!userId) {
-		return c.json<StatsResponse>({ highscore: 0, attempts: 0 });
-	}
-	return c.json<StatsResponse>(await getPlayerStats(userId));
+	const [leaderboard, stats] = await Promise.all([
+		getLeaderboard(10),
+		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null }),
+	]);
+	return c.json<InitResponse>({ stats, leaderboard });
 });
 
 //	Saves the score of a finished run. Called by the GameOver scene.
@@ -45,6 +114,9 @@ api.post('/score', async (c) => {
 
 	await Promise.all([
 		isNewBest ? redis.zAdd(highscoresKey(), { member: userId, score }) : Promise.resolve(),
+		isNewBest
+			? getLeaderboardMember(userId).then((member) => redis.zAdd(leaderboardKey(), { member, score }))
+			: Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
 	]);
 

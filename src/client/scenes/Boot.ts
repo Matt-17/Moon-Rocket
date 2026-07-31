@@ -1,5 +1,5 @@
 import { Scene } from 'phaser';
-import { fetchPlayerStats } from '../api.js';
+import { fetchInitData } from '../api.js';
 
 export class Boot extends Scene {
 	constructor() {
@@ -7,10 +7,12 @@ export class Boot extends Scene {
 	}
 
 	create() {
-		//	Load the player stats from the Devvit server before starting the game.
-		//	Outside of Reddit fetchPlayerStats falls back to empty stats.
-		fetchPlayerStats().then((stats) => {
+		//	Load the player stats and leaderboard from the Devvit server before
+		//	starting the game. Outside of Reddit fetchInitData falls back to
+		//	empty data.
+		fetchInitData().then(({ stats, leaderboard }) => {
 			this.registry.set('playerStats', stats);
+			this.registry.set('leaderboard', leaderboard);
 			this.scene.start('Preloader');
 		});
 	}

@@ -4,9 +4,21 @@
 export type PlayerStats = {
 	highscore: number
 	attempts: number
+	rank?: number | null
 }
 
-export type StatsResponse = PlayerStats
+export interface LeaderboardEntry {
+	username: string
+	score: number
+	rank: number
+}
+
+//	Initial payload loaded by the Boot scene: the player's own stats plus
+//	the subreddit's Top 10 leaderboard.
+export type InitResponse = {
+	stats: PlayerStats
+	leaderboard: LeaderboardEntry[]
+}
 
 export type SaveScoreRequest = {
 	score: number

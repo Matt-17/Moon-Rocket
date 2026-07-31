@@ -1,5 +1,5 @@
 import { showToast } from '@devvit/web/client';
-import { saveScore } from '../api.js';
+import { fetchInitData, saveScore } from '../api.js';
 import { StartButton } from '../components/StartButton.js';
 import { Background } from '../components/Background.js';
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js';
@@ -103,7 +103,18 @@ export class GameOver extends Phaser.Scene {
 	}
 
 	goToMenu() {
-		this.cameras.main.fade(200, 0, 0, 0);
-		this.time.delayedCall(200, () => this.scene.start('Menu'));
+		// Fetch fresh stats and leaderboard so the menu shows up-to-date data
+		fetchInitData().then(({ stats, leaderboard }) => {
+			this.registry.set('playerStats', stats);
+			this.registry.set('leaderboard', leaderboard);
+
+			this.cameras.main.fade(200, 0, 0, 0);
+			this.time.delayedCall(200, () => this.scene.start('Menu'));
+		});
+	}
+
+	override update(_time: number, delta: number) {
+		// Animate background
+		this.background.update(delta);
 	}
 }
