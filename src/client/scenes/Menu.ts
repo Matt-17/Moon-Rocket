@@ -1,6 +1,7 @@
 import { Scene } from 'phaser'
 import { StartButton } from '../components/StartButton.js'
 import { Background } from '../components/Background.js'
+import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js'
 import { TextStyles } from '../utils/TextStyles.js'
 
 export class Menu extends Scene {
@@ -11,6 +12,8 @@ export class Menu extends Scene {
 	}
 
 	async create() {
+		this.cameras.main.setZoom(RENDER_SCALE).centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+
 		// Create animated background
 		this.background = new Background(this);
 

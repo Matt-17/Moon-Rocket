@@ -2,6 +2,7 @@ import { showToast } from '@devvit/web/client';
 import { saveScore } from '../api.js';
 import { StartButton } from '../components/StartButton.js';
 import { Background } from '../components/Background.js';
+import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js';
 import { TextStyles } from '../utils/TextStyles.js'
 
 export class GameOver extends Phaser.Scene {
@@ -17,6 +18,8 @@ export class GameOver extends Phaser.Scene {
 	}
 
 	create() {
+		this.cameras.main.setZoom(RENDER_SCALE).centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
+
 		saveScore(this.score).then((result) => {
 			if (result) {
 				this.registry.set('playerStats', result.stats);
@@ -69,7 +72,7 @@ export class GameOver extends Phaser.Scene {
 			.on('pointerout', () => menuButton.clearTint());
 
 		// Dark overlay with fade-in effect
-		const overlay = this.add.rectangle(0, 0, this.cameras.main.width, this.cameras.main.height, 0x000000, 0).setOrigin(0, 0);
+		const overlay = this.add.rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT, 0x000000, 0).setOrigin(0, 0);
 		this.tweens.add({
 			targets: overlay,
 			alpha: 0.8,
@@ -78,7 +81,7 @@ export class GameOver extends Phaser.Scene {
 		});
 
 		// Container with slide-in animation
-		const container = this.add.container(this.cameras.main.centerX, this.cameras.main.centerY, [
+		const container = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, [
 			gameOverTitle, scoreText, performanceText, replayButton, menuButton
 		]);
 
@@ -87,7 +90,7 @@ export class GameOver extends Phaser.Scene {
 		this.tweens.add({
 			targets: container,
 			alpha: 1,
-			y: this.cameras.main.centerY,
+			y: GAME_HEIGHT / 2,
 			duration: 500,
 			delay: 200,
 			ease: 'Back.easeOut'

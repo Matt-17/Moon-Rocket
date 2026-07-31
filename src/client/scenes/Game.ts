@@ -1,4 +1,5 @@
 import { Background } from "../components/Background.js";
+import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from "../constants.js";
 import { TextStyles } from "../utils/TextStyles.js";
 
 export class Game extends Phaser.Scene {
@@ -52,14 +53,18 @@ export class Game extends Phaser.Scene {
 		this.gameOver = false;
 		this.candleCount = 0;
 		this.rocketSpeed = this.minRocketSpeed;
-		this.lastClose = this.scale.height / 2;
+		this.lastClose = GAME_HEIGHT / 2;
 		this.weeksDone = 0;
 	}
 
 	// MARK: - Create game
 	create() {
+		//	Oversampled canvas: zoom the camera so the 560x240 design space
+		//	fills the screen while movement stays subpixel-smooth.
+		this.cameras.main.setZoom(RENDER_SCALE);
+
 		// Set up world bounds
-		this.physics.world.setBounds(0, 0, this.scale.width, this.scale.height);
+		this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
 		// Create background component
 		this.background = new Background(this);
@@ -70,7 +75,7 @@ export class Game extends Phaser.Scene {
 
 		// Create rocket (positioned at 25% of the screen width)
 		this.rocket = this.physics.add
-			.sprite(this.scale.width * 0.25, this.scale.height / 2, 'rocket')
+			.sprite(GAME_WIDTH * 0.25, GAME_HEIGHT / 2, 'rocket')
 			.setRotation(0)
 			.play('rocket_idle');
 
@@ -95,18 +100,17 @@ export class Game extends Phaser.Scene {
 
 		this.createParticles();
 
-		this.nextCandleX = this.scale.width + this.candleWidth;
+		this.nextCandleX = GAME_WIDTH + this.candleWidth;
 
-		// Create UI
+		// Create UI (kept aligned with the camera view in update)
 		this.scoreText = this.add
 			.text(16, 16, 'Floor: 0', TextStyles.SCORE)
 			.setResolution(4)
-			.setScrollFactor(0)
 			.setDepth(1000);
 
 		// Add start instructions
 		const startText = this.add
-			.text(this.scale.width / 2, this.scale.height / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
+			.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
 			.setOrigin(0.5)
 			.setResolution(4);
 
@@ -117,8 +121,18 @@ export class Game extends Phaser.Scene {
 		this.input.on('pointerdown', this.thrustRocket, this);
 		this.input.keyboard?.on('keydown-SPACE', this.thrustRocket, this);
 
-		// Ensure physics world is running	
-		this.cameras.main.startFollow(this.rocket, false, 1, 0, - this.scale.width / 4, 0);
+		// Ensure physics world is running
+		this.cameras.main.startFollow(this.rocket, false, 1, 0, - GAME_WIDTH / 4, 0);
+		this.cameras.main.on(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, () => {
+			// Keep the score display pinned to the top-left of the camera view.
+			// midPoint is used instead of worldView because worldView is
+			// rounded to whole pixels, which would make the text jitter.
+			const cam = this.cameras.main;
+			this.scoreText.setPosition(
+				cam.midPoint.x - cam.displayWidth / 2 + 16,
+				cam.midPoint.y - cam.displayHeight / 2 + 16
+			);
+		});
 		this.physics.world.pause();
 	}
 
@@ -132,7 +146,7 @@ export class Game extends Phaser.Scene {
 	// MARK: - Calculate candle OHLC values based on previous close
 	calculateCandle(): { openY: number; closeY: number } {
 		const minY = 20;
-		const maxY = this.scale.height - 20;
+		const maxY = GAME_HEIGHT - 20;
 
 		const openY = this.lastClose;
 
@@ -189,9 +203,9 @@ export class Game extends Phaser.Scene {
 	createScoreTrigger(candleX: number) {
 		const trigger = this.add.rectangle(
 			candleX + this.rocket.width,
-			this.scale.height / 2,
+			GAME_HEIGHT / 2,
 			10,
-			this.scale.height,
+			GAME_HEIGHT,
 			0xff0000,
 			0
 		);
@@ -394,18 +408,18 @@ export class Game extends Phaser.Scene {
 		if (this.gameOver || !this.gameStarted) return;
 
 		// New candle spawning based on rocket's X position + one screen width
-		if (this.rocket.x + this.scale.width > this.nextCandleX) {
+		if (this.rocket.x + GAME_WIDTH > this.nextCandleX) {
 			this.spawnCandles();
 		}
 
 		// Check if rocket hit ground or ceiling
-		if (this.rocket.y <= 0 || this.rocket.y >= this.scale.height) {
+		if (this.rocket.y <= 0 || this.rocket.y >= GAME_HEIGHT) {
 			this.hitCandle();
 		}
 
 		// Remove candles that are far behind the rocket
 		this.candles.children.entries.forEach((candle) => {
-			if ((candle as Phaser.GameObjects.Sprite).x < this.rocket.x - this.scale.width) {
+			if ((candle as Phaser.GameObjects.Sprite).x < this.rocket.x - GAME_WIDTH) {
 				candle.destroy();
 			}
 		});
