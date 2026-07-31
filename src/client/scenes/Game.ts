@@ -44,6 +44,11 @@ export class Game extends Phaser.Scene {
 	private lastClose = 0;
 	private rng!: Phaser.Math.RandomDataGenerator;
 
+	// Personal best marker
+	private bestScore = 0;
+	private spawnedTriggers = 0;
+	private pbTriggerIndex = 0;
+
 	constructor() {
 		super('Game');
 	}
@@ -64,6 +69,18 @@ export class Game extends Phaser.Scene {
 		this.rng = new Phaser.Math.RandomDataGenerator(
 			daily ? [`moonrocket-${daily.date}`] : [`${Math.random()}`]
 		);
+
+		//	The personal best is marked in the level: passing the n-th score
+		//	trigger yields floor(n^1.5) points, so find the first trigger that
+		//	beats the current best and drop a marker there when it spawns.
+		this.bestScore = this.registry.get('playerStats')?.highscore ?? 0;
+		this.spawnedTriggers = 0;
+		this.pbTriggerIndex = 0;
+		if (this.bestScore > 0) {
+			let n = Math.max(1, Math.floor(Math.pow(this.bestScore, 2 / 3)) - 1);
+			while (Math.floor(Math.pow(n, 1.5)) <= this.bestScore) n++;
+			this.pbTriggerIndex = n;
+		}
 	}
 
 	// MARK: - Create game
@@ -208,6 +225,17 @@ export class Game extends Phaser.Scene {
 		body.setSize(28, (bodyH) - 28, true).setOffset(1, 14);
 	}
 
+	// MARK: - Personal best marker
+	//	A golden line at the position where the current run would beat the
+	//	player's all-time best - motivating when the record comes into view.
+	createBestMarker(markerX: number) {
+		this.add.rectangle(markerX, GAME_HEIGHT / 2, 1, GAME_HEIGHT, 0xffd700, 0.4);
+		this.add
+			.text(markerX + 4, 6, `PB ${this.bestScore}`,
+				TextStyles.withColor(TextStyles.withFontSize(TextStyles.SMALL, '10px'), '#FFD700'))
+			.setResolution(4);
+	}
+
 	// MARK: - Create score trigger for candle
 	createScoreTrigger(candleX: number) {
 		const trigger = this.add.rectangle(
@@ -339,6 +367,11 @@ export class Game extends Phaser.Scene {
 		const ohlc = this.calculateCandle();
 		this.createCandleBody(candleX, ohlc);
 		this.createScoreTrigger(candleX);
+
+		this.spawnedTriggers++;
+		if (this.pbTriggerIndex > 0 && this.spawnedTriggers === this.pbTriggerIndex) {
+			this.createBestMarker(candleX + this.rocket.width);
+		}
 
 		this.lastClose = ohlc.closeY;
 
