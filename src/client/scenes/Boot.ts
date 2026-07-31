@@ -7,6 +7,13 @@ export class Boot extends Scene {
 	}
 
 	create() {
+		//	Restore the player's sound preference (toggled in the menu).
+		try {
+			this.sound.mute = localStorage.getItem('moonrocket-sound') === 'off';
+		} catch {
+			// localStorage may be unavailable in some embedded contexts
+		}
+
 		//	Load the player stats and leaderboard from the Devvit server before
 		//	starting the game. Outside of Reddit fetchInitData falls back to
 		//	empty data.

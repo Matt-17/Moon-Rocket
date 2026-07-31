@@ -64,6 +64,30 @@ export class Menu extends Scene {
 
 		new StartButton(this, 100, 150).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
+
+		this.createSoundToggle();
+	}
+
+	createSoundToggle() {
+		const label = () => `SOUND: ${this.sound.mute ? 'OFF' : 'ON'}`;
+
+		const soundText = this.add
+			.text(8, GAME_HEIGHT - 6, label(), TextStyles.withFontSize(TextStyles.SMALL, '10px'))
+			.setOrigin(0, 1)
+			.setResolution(4)
+			.setInteractive({ useHandCursor: true });
+
+		soundText.on('pointerdown', () => {
+			this.sound.mute = !this.sound.mute;
+			soundText.setText(label());
+			try {
+				localStorage.setItem('moonrocket-sound', this.sound.mute ? 'off' : 'on');
+			} catch {
+				// localStorage may be unavailable in some embedded contexts
+			}
+		});
+		soundText.on('pointerover', () => soundText.setTint(0xffff00));
+		soundText.on('pointerout', () => soundText.clearTint());
 	}
 
 	createLeaderboard(leaderboard: LeaderboardEntry[], title: string) {
