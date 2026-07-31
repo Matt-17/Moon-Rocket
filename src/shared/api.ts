@@ -19,6 +19,8 @@ export type DailyInfo = {
 	//	ISO date (YYYY-MM-DD) identifying the challenge and seeding the RNG.
 	date: string
 	leaderboard: LeaderboardEntry[]
+	//	The current player's best score for this day (0 if none yet).
+	myBest: number
 }
 
 //	Initial payload loaded by the Boot scene: the player's own stats plus

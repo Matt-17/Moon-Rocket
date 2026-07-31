@@ -98,17 +98,23 @@ async function getPlayerStats(userId: string): Promise<PlayerStats> {
 
 //	Returns the daily challenge info if the current post is a daily post.
 async function getDailyInfo(): Promise<DailyInfo | null> {
-	const { postId } = context;
+	const { postId, userId } = context;
 	if (!postId) return null;
 
 	const date = await redis.get(dailyPostKey(postId));
 	if (!date) return null;
 
 	try {
-		return { date, leaderboard: await readLeaderboard(dailyLeaderboardKey(date)) };
+		const [leaderboard, myBest] = await Promise.all([
+			readLeaderboard(dailyLeaderboardKey(date)),
+			userId
+				? getLeaderboardMember(userId).then((member) => redis.zScore(dailyLeaderboardKey(date), member))
+				: Promise.resolve(undefined),
+		]);
+		return { date, leaderboard, myBest: Number(myBest ?? 0) };
 	} catch (error) {
 		console.error('Error fetching daily leaderboard:', error);
-		return { date, leaderboard: [] };
+		return { date, leaderboard: [], myBest: 0 };
 	}
 }
 

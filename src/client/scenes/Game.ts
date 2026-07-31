@@ -73,7 +73,10 @@ export class Game extends Phaser.Scene {
 		//	The personal best is marked in the level: passing the n-th score
 		//	trigger yields floor(n^1.5) points, so find the first trigger that
 		//	beats the current best and drop a marker there when it spawns.
-		this.bestScore = this.registry.get('playerStats')?.highscore ?? 0;
+		//	On daily posts the day's own best is the relevant reference.
+		this.bestScore = daily
+			? (daily.myBest ?? 0)
+			: (this.registry.get('playerStats')?.highscore ?? 0);
 		this.spawnedTriggers = 0;
 		this.pbTriggerIndex = 0;
 		if (this.bestScore > 0) {
