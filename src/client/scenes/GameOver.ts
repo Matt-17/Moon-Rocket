@@ -7,20 +7,22 @@ import { TextStyles } from '../utils/TextStyles.js'
 
 export class GameOver extends Phaser.Scene {
 	score = 0
+	diamonds = 0
 	background!: Background;
 
 	constructor() {
 		super('GameOver');
 	}
 
-	init(data: { score: number }) {
+	init(data: { score: number; diamonds?: number }) {
 		this.score = data.score;
+		this.diamonds = data.diamonds ?? 0;
 	}
 
 	create() {
 		this.cameras.main.setZoom(RENDER_SCALE).centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
-		saveScore(this.score).then((result) => {
+		saveScore(this.score, this.diamonds).then((result) => {
 			if (result) {
 				this.registry.set('playerStats', result.stats);
 				if (result.newBest !== null) {
@@ -59,6 +61,18 @@ export class GameOver extends Phaser.Scene {
 			.setOrigin(0.5)
 			.setResolution(4);
 
+		// Diamonds collected during this run
+		const diamondItems: Phaser.GameObjects.GameObject[] = [];
+		if (this.diamonds > 0) {
+			diamondItems.push(
+				this.add.image(-14, 20, 'diamond').setOrigin(0.5).setScale(0.7),
+				this.add
+					.text(-4, 20, `+${this.diamonds}`, TextStyles.withFontSize(TextStyles.SCORE, '12px'))
+					.setOrigin(0, 0.5)
+					.setResolution(4)
+			);
+		}
+
 		// Play again button using the component
 		const replayButton = new StartButton(this, 0, 50).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
@@ -84,7 +98,7 @@ export class GameOver extends Phaser.Scene {
 
 		// Container with slide-in animation
 		const container = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, [
-			gameOverTitle, scoreText, performanceText, replayButton, menuButton
+			gameOverTitle, scoreText, performanceText, ...diamondItems, replayButton, menuButton
 		]);
 
 		container.setAlpha(0);

@@ -5,6 +5,8 @@ export type PlayerStats = {
 	highscore: number
 	attempts: number
 	rank?: number | null
+	//	Total diamonds ever collected (currency for skins).
+	diamonds: number
 }
 
 export interface LeaderboardEntry {
@@ -33,6 +35,8 @@ export type InitResponse = {
 
 export type SaveScoreRequest = {
 	score: number
+	//	Diamonds collected during this run.
+	diamonds: number
 }
 
 export type SaveScoreResponse = {

@@ -9,16 +9,16 @@ export async function fetchInitData(): Promise<InitResponse> {
 		return await res.json();
 	} catch {
 		//	Outside of Reddit (e.g. opening game.html directly) there is no server.
-		return { stats: { highscore: 0, attempts: 0, rank: null }, leaderboard: [], daily: null };
+		return { stats: { highscore: 0, attempts: 0, rank: null, diamonds: 0 }, leaderboard: [], daily: null };
 	}
 }
 
-export async function saveScore(score: number): Promise<SaveScoreResponse | null> {
+export async function saveScore(score: number, diamonds: number): Promise<SaveScoreResponse | null> {
 	try {
 		const res = await fetch('/api/score', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({ score } satisfies SaveScoreRequest),
+			body: JSON.stringify({ score, diamonds } satisfies SaveScoreRequest),
 		});
 		if (!res.ok) throw new Error(`Unexpected status ${res.status}`);
 		return await res.json();

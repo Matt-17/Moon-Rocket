@@ -14,6 +14,7 @@ import type {
 //	Redis keys are scoped per subreddit, so every community keeps its own leaderboard.
 const highscoresKey = () => `${context.subredditId}:highscores`;
 const attemptsKey = () => `${context.subredditId}:attempts`;
+const diamondsKey = () => `${context.subredditId}:diamonds`;
 //	Leaderboard members are stored as `${userId}:${username}` (schema kept
 //	from the previous app version so existing data stays valid).
 const leaderboardKey = () => `${context.subredditId}:leaderboard`;
@@ -83,16 +84,18 @@ async function getUserRank(userId: string): Promise<number | null> {
 }
 
 async function getPlayerStats(userId: string): Promise<PlayerStats> {
-	const [highscore, attempts, rank] = await Promise.all([
+	const [highscore, attempts, rank, diamonds] = await Promise.all([
 		redis.zScore(highscoresKey(), userId),
 		redis.hGet(attemptsKey(), userId),
 		getUserRank(userId),
+		redis.hGet(diamondsKey(), userId),
 	]);
 
 	return {
 		highscore: Number(highscore ?? 0),
 		attempts: Number(attempts ?? 0),
 		rank,
+		diamonds: Number(diamonds ?? 0),
 	};
 }
 
@@ -147,7 +150,7 @@ api.get('/init', async (c) => {
 	const { userId } = context;
 	const [leaderboard, stats, daily] = await Promise.all([
 		getLeaderboard(10),
-		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null }),
+		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null, diamonds: 0 }),
 		getDailyInfo(),
 	]);
 	return c.json<InitResponse>({ stats, leaderboard, daily });
@@ -203,11 +206,14 @@ async function announceTopTenEntry(member: string, score: number, rank: number) 
 //	Saves the score of a finished run. Called by the GameOver scene.
 api.post('/score', async (c) => {
 	const { userId } = context;
-	const { score } = await c.req.json<SaveScoreRequest>();
+	const { score, diamonds } = await c.req.json<SaveScoreRequest>();
 
 	if (!userId || typeof score !== 'number' || !Number.isFinite(score)) {
 		return c.json({ status: 'error', message: 'Invalid request' }, 400);
 	}
+
+	//	Sanity-capped: a run can hardly yield more than a few hundred diamonds.
+	const collectedDiamonds = Math.min(500, Math.max(0, Math.floor(Number(diamonds) || 0)));
 
 	const [currentHighscore, dailyDate, member, rankBefore] = await Promise.all([
 		redis.zScore(highscoresKey(), userId),
@@ -232,6 +238,7 @@ api.post('/score', async (c) => {
 		isNewBest ? redis.zAdd(highscoresKey(), { member: userId, score }) : Promise.resolve(),
 		isNewBest ? redis.zAdd(leaderboardKey(), { member, score }) : Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
+		collectedDiamonds > 0 ? redis.hIncrBy(diamondsKey(), userId, collectedDiamonds) : Promise.resolve(),
 	]);
 
 	//	Celebrate runs that climb into the Top 10 with a comment on the post,

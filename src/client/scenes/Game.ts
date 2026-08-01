@@ -63,6 +63,13 @@ export class Game extends Phaser.Scene {
 	private newsBanner!: Phaser.GameObjects.Container;
 	private newsText!: Phaser.GameObjects.Text;
 
+	// Diamond collectibles
+	private static readonly DIAMOND_CHANCE = 0.35;
+	private diamondPickups!: Phaser.Physics.Arcade.StaticGroup;
+	private diamondsCollected = 0;
+	private diamondHud!: Phaser.GameObjects.Container;
+	private diamondHudText!: Phaser.GameObjects.Text;
+
 	constructor() {
 		super('Game');
 	}
@@ -94,6 +101,7 @@ export class Game extends Phaser.Scene {
 
 		this.newsType = null;
 		this.newsWeeksLeft = 0;
+		this.diamondsCollected = 0;
 		this.spawnedTriggers = 0;
 		this.pbTriggerIndex = 0;
 		if (this.bestScore > 0) {
@@ -118,6 +126,7 @@ export class Game extends Phaser.Scene {
 		// Create pipes group (without physics - we'll handle physics individually)
 		this.candles = this.physics.add.staticGroup();
 		this.scores = this.physics.add.staticGroup();
+		this.diamondPickups = this.physics.add.staticGroup();
 
 		// Create rocket (positioned at 25% of the screen width)
 		this.rocket = this.physics.add
@@ -127,6 +136,7 @@ export class Game extends Phaser.Scene {
 
 		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
 		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
+		this.physics.add.overlap(this.rocket, this.diamondPickups, this.collectDiamond, undefined, this);
 
 		(this.rocket.body as Phaser.Physics.Arcade.Body)
 			.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
@@ -152,6 +162,18 @@ export class Game extends Phaser.Scene {
 		this.scoreText = this.add
 			.text(16, 16, 'Floor: 0', TextStyles.SCORE)
 			.setResolution(4)
+			.setDepth(1000);
+
+		// Diamond counter, pinned to the top-right of the camera view
+		this.diamondHudText = this.add
+			.text(-6, 0, '0', TextStyles.SCORE)
+			.setOrigin(1, 0.5)
+			.setResolution(4);
+		this.diamondHud = this.add
+			.container(0, 0, [
+				this.diamondHudText,
+				this.add.image(0, 0, 'diamond').setOrigin(0, 0.5).setScale(0.6),
+			])
 			.setDepth(1000);
 
 		// News ticker banner (hidden until a news event fires)
@@ -191,6 +213,7 @@ export class Game extends Phaser.Scene {
 			const viewTop = cam.midPoint.y - cam.displayHeight / 2;
 			this.scoreText.setPosition(viewLeft + 16, viewTop + 16);
 			this.newsBanner.setPosition(viewLeft + cam.displayWidth / 2 - 80, viewTop + 40);
+			this.diamondHud.setPosition(viewLeft + cam.displayWidth - 26, viewTop + 22);
 		});
 		this.physics.world.pause();
 	}
@@ -410,6 +433,14 @@ export class Game extends Phaser.Scene {
 			this.createBestMarker(candleX + this.rocket.width);
 		}
 
+		//	Chance for a diamond in the gap after this candle. Both rng rolls
+		//	are deterministic, so daily runs place identical diamonds.
+		const diamondRoll = this.rng.frac();
+		const diamondY = this.rng.between(30, GAME_HEIGHT - 30);
+		if (diamondRoll < Game.DIAMOND_CHANCE) {
+			this.diamondPickups.add(this.add.image(candleX + this.candleWidth + 14, diamondY, 'diamond'));
+		}
+
 		this.lastClose = ohlc.closeY;
 
 		this.nextCandleX += this.candleWidth * 2;
@@ -494,8 +525,16 @@ export class Game extends Phaser.Scene {
 
 		// Show game over after short delay
 		this.time.delayedCall(800, () => {
-			this.scene.start('GameOver', { score: this.getDisplayScore() });
+			this.scene.start('GameOver', { score: this.getDisplayScore(), diamonds: this.diamondsCollected });
 		});
+	}
+
+	// MARK: - Collect diamond
+	collectDiamond(_: any, diamond: any) {
+		this.diamondsCollected++;
+		this.diamondHudText.setText(`${this.diamondsCollected}`);
+		this.sound.play('milestone', { volume: 0.2 });
+		diamond.destroy();
 	}
 
 	// MARK: - Hit score
