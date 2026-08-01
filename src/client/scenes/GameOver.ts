@@ -134,9 +134,11 @@ export class GameOver extends Phaser.Scene {
 
 	goToMenu() {
 		// Fetch fresh stats and leaderboard so the menu shows up-to-date data
-		fetchInitData().then(({ stats, leaderboard, daily, playerCounts }) => {
+		fetchInitData().then(({ stats, leaderboard, diamondLeaderboard, todayLeaderboard, daily, playerCounts }) => {
 			this.registry.set('playerStats', stats);
 			this.registry.set('leaderboard', leaderboard);
+			this.registry.set('diamondLeaderboard', diamondLeaderboard);
+			this.registry.set('todayLeaderboard', todayLeaderboard);
 			this.registry.set('daily', daily);
 			this.registry.set('playerCounts', playerCounts);
 

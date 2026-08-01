@@ -24,7 +24,6 @@ export class Menu extends Scene {
 		const playerStats = this.registry.get('playerStats')
 		const leaderboard: LeaderboardEntry[] = this.registry.get('leaderboard') || []
 		const daily: DailyInfo | null = this.registry.get('daily') || null
-		const { highscore, rank } = playerStats
 
 		// Logo
 		this.add.image(100, 20, 'logo').setOrigin(0.5, 0);
@@ -39,29 +38,12 @@ export class Menu extends Scene {
 				.setResolution(4);
 		}
 
-		// Your stats section
-		const yourStatsY = 10;
-		this.add
-			.text(350, yourStatsY, 'Your Stats:', TextStyles.SCORE_LARGE)
-			.setOrigin(0.5, 0)
-			.setResolution(4);
-
-		this.add
-			.text(350, yourStatsY + 25, `Best: ${highscore}`, TextStyles.BODY_WHITE)
-			.setOrigin(0.5, 0)
-			.setResolution(4);
-
-		if (rank) {
-			this.add
-				.text(350, yourStatsY + 45, `Rank: #${rank}`, TextStyles.SCORE_LARGE)
-				.setOrigin(0.5, 0)
-				.setResolution(4);
-		}
-
-		this.add.image(490, 25, 'rocket').setOrigin(0.5, 0).setScale(1);
-
-		// Leaderboard section
-		this.createLeaderboard(daily ? daily.leaderboard : leaderboard, daily ? "Today's Top 10:" : 'Top 10:');
+		// Leaderboard tabs: today's challenge, all-time scores, diamonds
+		this.createLeaderboardTabs([
+			{ label: 'DAILY', entries: daily ? daily.leaderboard : (this.registry.get('todayLeaderboard') || []) },
+			{ label: 'SCORE', entries: leaderboard },
+			{ label: 'DIAMONDS', entries: this.registry.get('diamondLeaderboard') || [] },
+		]);
 
 		new StartButton(this, 100, 150).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
@@ -201,21 +183,42 @@ export class Menu extends Scene {
 		});
 	}
 
-	createLeaderboard(leaderboard: LeaderboardEntry[], title: string) {
-		const startX = 350;
-		const startY = 85;
-		const lineHeight = 12; // More compact
-		const tableWidth = 240; // Much wider table to use more screen space
+	//	Tabbed leaderboards in the right column. The first tab (daily) is
+	//	selected initially.
+	createLeaderboardTabs(boards: { label: string; entries: LeaderboardEntry[] }[]) {
+		const startX = 370;
+		const tabY = 12;
+		const listContainer = this.add.container(0, 0);
+		const tabTexts: Phaser.GameObjects.Text[] = [];
 
-		// Leaderboard title - smaller and more compact
-		this.add
-			.text(startX, startY, title, TextStyles.withFontSize(TextStyles.BODY_WHITE, '18px'))
-			.setOrigin(0.5, 0)
-			.setResolution(4);
+		const select = (index: number) => {
+			tabTexts.forEach((t, i) => t.setColor(i === index ? '#ffff00' : '#aaaaaa'));
+			listContainer.removeAll(true);
+			this.renderLeaderboard(listContainer, boards[index]!.entries);
+		};
+
+		boards.forEach((board, index) => {
+			const tab = this.add
+				.text(startX + (index - 1) * 90, tabY, board.label, TextStyles.withFontSize(TextStyles.SCORE, '14px'))
+				.setOrigin(0.5, 0)
+				.setResolution(4)
+				.setInteractive({ useHandCursor: true });
+			tab.on('pointerdown', () => select(index));
+			tabTexts.push(tab);
+		});
+
+		select(0);
+	}
+
+	renderLeaderboard(container: Phaser.GameObjects.Container, leaderboard: LeaderboardEntry[]) {
+		const startX = 370;
+		const startY = 36;
+		const lineHeight = 15;
+		const tableWidth = 240;
 
 		// Create leaderboard entries
 		leaderboard.forEach((entry, index) => {
-			const y = startY + 20 + (index * lineHeight);
+			const y = startY + (index * lineHeight);
 
 			// Different colors for top ranks
 			let textColor = '#dddddd'; // Light gray for most
@@ -235,10 +238,10 @@ export class Menu extends Scene {
 
 			// Column 1: Rank (small, left aligned)
 			const rankText = entry.rank < 10 ? `# ${entry.rank}` : `#${entry.rank}`;
-			this.add
+			container.add(this.add
 				.text(startX - tableWidth / 2 - 10, y, rankText, compactStyle)
 				.setOrigin(0, 0) // Left aligned
-				.setResolution(4);
+				.setResolution(4));
 
 			// Column 2: Username (smaller font, longer space, middle)
 			// Truncate very long usernames with "..."
@@ -252,25 +255,25 @@ export class Menu extends Scene {
 				TextStyles.withFontSize(TextStyles.SMALL, '16px'), // Smaller font for username
 				textColor
 			);
-			this.add
+			container.add(this.add
 				.text(startX - tableWidth / 2 + 40, y, usernameText, usernameStyle) // Position after rank, more space
 				.setOrigin(0, 0) // Left aligned
-				.setResolution(4);
+				.setResolution(4));
 
 			// Column 3: Score (far right, right aligned)
 			const scoreText = `${entry.score}`;
-			this.add
+			container.add(this.add
 				.text(startX + tableWidth / 2 + 30, y, scoreText, compactStyle) // Use the extra table width
 				.setOrigin(1, 0) // Right aligned
-				.setResolution(4);
+				.setResolution(4));
 		});
 
 		// If no leaderboard data
 		if (leaderboard.length === 0) {
-			this.add
-				.text(startX, startY + 20, 'No scores yet!\nBe the first to play!', TextStyles.SMALL)
+			container.add(this.add
+				.text(startX, startY + 10, 'No scores yet!\nBe the first to play!', TextStyles.withAlign(TextStyles.SMALL, 'center'))
 				.setOrigin(0.5, 0)
-				.setResolution(4);
+				.setResolution(4));
 		}
 	}
 

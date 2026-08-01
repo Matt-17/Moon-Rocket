@@ -12,6 +12,8 @@ export async function fetchInitData(): Promise<InitResponse> {
 		return {
 			stats: { highscore: 0, attempts: 0, rank: null, diamonds: 0, diamondsToday: 0 },
 			leaderboard: [],
+			diamondLeaderboard: [],
+			todayLeaderboard: [],
 			daily: null,
 			playerCounts: { today: 0, week: 0, month: 0 },
 		};

@@ -15,6 +15,7 @@ import type {
 const highscoresKey = () => `${context.subredditId}:highscores`;
 const attemptsKey = () => `${context.subredditId}:attempts`;
 const diamondsKey = () => `${context.subredditId}:diamonds`;
+const diamondsLeaderboardKey = () => `${context.subredditId}:diamonds:leaderboard`;
 //	Leaderboard members are stored as `${userId}:${username}` (schema kept
 //	from the previous app version so existing data stays valid).
 const leaderboardKey = () => `${context.subredditId}:leaderboard`;
@@ -168,10 +169,13 @@ const api = new Hono();
 api.get('/init', async (c) => {
 	const { userId } = context;
 	const periods = playerPeriods();
-	const [leaderboard, stats, daily, today, week, month] = await Promise.all([
+	const todayDate = periods.day.replace('day:', '');
+	const [leaderboard, stats, daily, diamondLeaderboard, todayLeaderboard, today, week, month] = await Promise.all([
 		getLeaderboard(10),
 		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null, diamonds: 0, diamondsToday: 0 }),
 		getDailyInfo(),
+		readLeaderboard(diamondsLeaderboardKey()).catch(() => []),
+		readLeaderboard(dailyLeaderboardKey(todayDate)).catch(() => []),
 		redis.zCard(playersKey(periods.day)),
 		redis.zCard(playersKey(periods.week)),
 		redis.zCard(playersKey(periods.month)),
@@ -179,6 +183,8 @@ api.get('/init', async (c) => {
 	return c.json<InitResponse>({
 		stats,
 		leaderboard,
+		diamondLeaderboard,
+		todayLeaderboard,
 		daily,
 		playerCounts: { today: today ?? 0, week: week ?? 0, month: month ?? 0 },
 	});
@@ -282,10 +288,11 @@ api.post('/score', async (c) => {
 		const previousDayBest = Number((await redis.hGet(dayKey, userId)) ?? 0);
 		if (collectedDiamonds > previousDayBest) {
 			diamondsCredited = collectedDiamonds - previousDayBest;
-			await Promise.all([
+			const [, newTotal] = await Promise.all([
 				redis.hSet(dayKey, { [userId]: `${collectedDiamonds}` }),
 				redis.hIncrBy(diamondsKey(), userId, diamondsCredited),
 			]);
+			await redis.zAdd(diamondsLeaderboardKey(), { member, score: Number(newTotal) });
 		}
 	}
 

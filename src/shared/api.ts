@@ -33,6 +33,10 @@ export type DailyInfo = {
 export type InitResponse = {
 	stats: PlayerStats
 	leaderboard: LeaderboardEntry[]
+	//	Top 10 by total diamonds collected.
+	diamondLeaderboard: LeaderboardEntry[]
+	//	Today's daily-challenge board (independent of the current post).
+	todayLeaderboard: LeaderboardEntry[]
 	daily: DailyInfo | null
 	//	Unique players who submitted at least one run in the period.
 	playerCounts: {
