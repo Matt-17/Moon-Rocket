@@ -141,8 +141,16 @@ export class Menu extends Scene {
 	}
 
 	createSoundToggle() {
-		//	Both labels are pre-rendered and toggled via visibility - more
-		//	reliable than re-rendering the text on click.
+		//	Both labels are pre-rendered and toggled via visibility. The state
+		//	lives in a local variable - reading this.sound.mute back lags one
+		//	frame, which made the label trail the actual state by one click.
+		let muted = false;
+		try {
+			muted = localStorage.getItem('moonrocket-sound') === 'off';
+		} catch {
+			// localStorage may be unavailable in some embedded contexts
+		}
+
 		const style = TextStyles.withFontSize(TextStyles.SMALL, '10px');
 		const onText = this.add
 			.text(8, GAME_HEIGHT - 6, 'SOUND: ON', style)
@@ -154,8 +162,9 @@ export class Menu extends Scene {
 			.setResolution(4);
 
 		const sync = () => {
-			onText.setVisible(!this.sound.mute);
-			offText.setVisible(this.sound.mute);
+			this.sound.mute = muted;
+			onText.setVisible(!muted);
+			offText.setVisible(muted);
 		};
 		sync();
 
@@ -167,13 +176,21 @@ export class Menu extends Scene {
 			.setInteractive({ useHandCursor: true });
 
 		hit.on('pointerdown', () => {
-			this.sound.mute = !this.sound.mute;
+			muted = !muted;
 			sync();
 			try {
-				localStorage.setItem('moonrocket-sound', this.sound.mute ? 'off' : 'on');
+				localStorage.setItem('moonrocket-sound', muted ? 'off' : 'on');
 			} catch {
 				// localStorage may be unavailable in some embedded contexts
 			}
+		});
+		hit.on('pointerover', () => {
+			onText.setTint(0xffff00);
+			offText.setTint(0xffff00);
+		});
+		hit.on('pointerout', () => {
+			onText.clearTint();
+			offText.clearTint();
 		});
 	}
 
