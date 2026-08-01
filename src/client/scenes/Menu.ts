@@ -52,19 +52,18 @@ export class Menu extends Scene {
 		new StartButton(this, 100, 170).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
 
-		// Diamond balance and today's best haul, bottom center
-		const diamondLine = this.add
+		// Diamond balance and today's best haul, next to the skin picker
+		// (bottom center would collide with the player-count line).
+		this.add.image(168, 210, 'diamond').setScale(0.7);
+		this.add
 			.text(
-				GAME_WIDTH / 2 + 8,
-				GAME_HEIGHT - 6,
+				178,
+				210,
 				`× ${playerStats.diamonds ?? 0}   TODAY'S BEST: ${playerStats.diamondsToday ?? 0}`,
 				TextStyles.withFontSize(TextStyles.SMALL, '12px')
 			)
-			.setOrigin(0.5, 1)
+			.setOrigin(0, 0.5)
 			.setResolution(4);
-		this.add
-			.image(diamondLine.x - diamondLine.displayWidth / 2 - 8, diamondLine.y - diamondLine.displayHeight / 2, 'diamond')
-			.setScale(0.7);
 
 		this.createSkinPicker(playerStats.diamonds ?? 0);
 		this.createSoundToggle();
