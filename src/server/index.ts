@@ -264,11 +264,25 @@ api.post('/score', async (c) => {
 		isNewBest ? redis.zAdd(highscoresKey(), { member: userId, score }) : Promise.resolve(),
 		isNewBest ? redis.zAdd(leaderboardKey(), { member, score }) : Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
-		collectedDiamonds > 0 ? redis.hIncrBy(diamondsKey(), userId, collectedDiamonds) : Promise.resolve(),
 		redis.zAdd(playersKey(periods.day), { member: userId, score: 1 }),
 		redis.zAdd(playersKey(periods.week), { member: userId, score: 1 }),
 		redis.zAdd(playersKey(periods.month), { member: userId, score: 1 }),
 	]);
+
+	//	Diamonds count per calendar day: only the best haul of the day is
+	//	credited (the daily seed places identical diamonds, so summing every
+	//	run would make farming trivial). The balance accumulates the daily
+	//	maxima.
+	if (collectedDiamonds > 0) {
+		const dayKey = `${diamondsKey()}:${periods.day}`;
+		const previousDayBest = Number((await redis.hGet(dayKey, userId)) ?? 0);
+		if (collectedDiamonds > previousDayBest) {
+			await Promise.all([
+				redis.hSet(dayKey, { [userId]: `${collectedDiamonds}` }),
+				redis.hIncrBy(diamondsKey(), userId, collectedDiamonds - previousDayBest),
+			]);
+		}
+	}
 
 	//	Celebrate runs that climb into the Top 10 with a comment on the post,
 	//	and unlock achievement flairs on new milestone tiers.

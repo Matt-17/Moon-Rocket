@@ -50,12 +50,12 @@ export class Game extends Phaser.Scene {
 	private spawnedTriggers = 0;
 	private pbTriggerIndex = 0;
 
-	// News pickups: newspapers float in the level (seeded positions and
-	// types, so daily runs place identical news for everyone). Only a
-	// COLLECTED news item takes effect - it shapes the following week's
-	// candles. Replaying the same seed teaches which ones to grab (calm
-	// weeks flatten the chart) and which to avoid (steep stairs, chaos).
-	private static readonly NEWS_PICKUP_CHANCE = 0.15;
+	// News pickups: a newspaper floats in every weekend gap (seeded type
+	// and position, so daily runs place identical news for everyone). Only
+	// a COLLECTED news item takes effect - it visibly reshapes the week
+	// right after its weekend (and only that week). Replaying the same
+	// seed teaches which ones to grab (calm weeks flatten the chart) and
+	// which to avoid (steep stairs, chaos).
 	private static readonly NEWS_HEADLINES = {
 		calm: ['MARKETS ASLEEP', 'SIDEWAYS SUMMER', 'LOW VOLUME WEEK'],
 		bull: ['FED CUTS RATES!', 'MOON MISSION APPROVED!', 'INSTITUTIONS ARE BUYING!'],
@@ -63,11 +63,16 @@ export class Game extends Phaser.Scene {
 		volatile: ['ELON TWEETS AGAIN!', 'EARNINGS WEEK CHAOS!', 'ALGO TRADERS GONE WILD!'],
 	} as const;
 	private static readonly NEWS_TYPES = ['calm', 'bull', 'bear', 'volatile'] as const;
-	private newsType: keyof typeof Game.NEWS_HEADLINES | null = null;
-	private pendingNewsType: keyof typeof Game.NEWS_HEADLINES | null = null;
 	private newsPickups!: Phaser.Physics.Arcade.StaticGroup;
 	private newsBanner!: Phaser.GameObjects.Container;
 	private newsText!: Phaser.GameObjects.Text;
+
+	// Per-week bookkeeping so a collected news item can recompute and
+	// morph the candles of exactly one week.
+	private weekIndex = 0;
+	private weekStartClose = new Map<number, number>();
+	private weekCandles = new Map<number, { candle: Phaser.GameObjects.NineSlice; dirRoll: number; strengthRoll: number }[]>();
+	private weekEffects = new Map<number, keyof typeof Game.NEWS_HEADLINES>();
 
 	// Diamond collectibles
 	private static readonly DIAMOND_CHANCE = 0.35;
@@ -108,8 +113,10 @@ export class Game extends Phaser.Scene {
 			? (daily.myBest ?? 0)
 			: (this.registry.get('playerStats')?.highscore ?? 0);
 
-		this.newsType = null;
-		this.pendingNewsType = null;
+		this.weekIndex = 0;
+		this.weekStartClose = new Map([[0, GAME_HEIGHT / 2]]);
+		this.weekCandles = new Map();
+		this.weekEffects = new Map();
 		this.diamondsCollected = 0;
 		this.spawnedTriggers = 0;
 		this.pbTriggerIndex = 0;
@@ -247,15 +254,20 @@ export class Game extends Phaser.Scene {
 	}
 
 	// MARK: - Calculate candle OHLC values based on previous close
-	calculateCandle(): { openY: number; closeY: number } {
+	//	Pure computation from the raw rng rolls, so a collected news item can
+	//	recompute a week's candles from the same rolls with a different effect.
+	computeCandle(
+		openY: number,
+		dirRoll: number,
+		strengthRoll: number,
+		effect: keyof typeof Game.NEWS_HEADLINES | null
+	): { openY: number; closeY: number } {
 		const minY = 20;
 		const maxY = GAME_HEIGHT - 20;
 
-		const openY = this.lastClose;
-
 		// 1) Richtung wählen (Marktphasen verschieben die Wahrscheinlichkeit)
-		const downChance = this.newsType === 'bull' ? 0.15 : this.newsType === 'bear' ? 0.85 : 0.5;
-		let goDown = this.rng.frac() < downChance;
+		const downChance = effect === 'bull' ? 0.15 : effect === 'bear' ? 0.85 : 0.5;
+		let goDown = dirRoll < downChance;
 
 		// 2) Genug Platz für trendStrengthMin?
 		const roomUp = openY - minY;
@@ -264,12 +276,10 @@ export class Game extends Phaser.Scene {
 		if (goDown && roomDown < this.trendStrengthMin) goDown = false;
 		if (!goDown && roomUp < this.trendStrengthMin) goDown = true;
 
-		// 3) Zufällige Stärke zwischen min und max (volatile Wochen schlagen
-		//    stärker aus, ruhige Wochen flachen den Chart ab)
-		const strengthScale = this.newsType === 'volatile' ? 1.7 : this.newsType === 'calm' ? 0.45 : 1;
-		const chosen = Math.round(
-			this.rng.between(this.trendStrengthMin, this.trendStrengthMax) * strengthScale
-		);
+		// 3) Stärke skalieren (volatile Wochen schlagen stärker aus, ruhige
+		//    Wochen flachen den Chart ab)
+		const strengthScale = effect === 'volatile' ? 1.7 : effect === 'calm' ? 0.45 : 1;
+		const chosen = Math.round(strengthRoll * strengthScale);
 
 		// 4) Falls zu weit, kürzen
 		const maxAllowed = goDown ? roomDown : roomUp;
@@ -283,7 +293,7 @@ export class Game extends Phaser.Scene {
 
 
 	// MARK: - Create candle body sprite
-	createCandleBody(candleX: number, ohlc: { openY: number, closeY: number }) {
+	createCandleBody(candleX: number, ohlc: { openY: number, closeY: number }): Phaser.GameObjects.NineSlice {
 		const { openY, closeY } = ohlc;
 		const bodyH = Math.abs(closeY - openY) + 28;
 		const bodyMid = (openY + closeY) / 2;
@@ -305,6 +315,8 @@ export class Game extends Phaser.Scene {
 
 		const body = candle.body as Phaser.Physics.Arcade.Body;
 		body.setSize(28, (bodyH) - 28, true).setOffset(1, 14);
+
+		return candle;
 	}
 
 	// MARK: - Personal best marker
@@ -446,37 +458,34 @@ export class Game extends Phaser.Scene {
 
 		const candleX = this.nextCandleX;
 
-		const ohlc = this.calculateCandle();
-		this.createCandleBody(candleX, ohlc);
+		//	All rng rolls are deterministic and unconditional, so daily runs
+		//	place identical candles and pickups no matter what the player
+		//	collects. The raw rolls are stored so a collected news item can
+		//	recompute this week's candles with its effect applied.
+		const effect = this.weekEffects.get(this.weekIndex) ?? null;
+		const dirRoll = this.rng.frac();
+		const strengthRoll = this.rng.between(this.trendStrengthMin, this.trendStrengthMax);
+		const ohlc = this.computeCandle(this.lastClose, dirRoll, strengthRoll, effect);
+		const candle = this.createCandleBody(candleX, ohlc);
 		this.createScoreTrigger(candleX);
+
+		let weekList = this.weekCandles.get(this.weekIndex);
+		if (!weekList) {
+			weekList = [];
+			this.weekCandles.set(this.weekIndex, weekList);
+		}
+		weekList.push({ candle, dirRoll, strengthRoll });
 
 		this.spawnedTriggers++;
 		if (this.pbTriggerIndex > 0 && this.spawnedTriggers === this.pbTriggerIndex) {
 			this.createBestMarker(candleX + this.rocket.width);
 		}
 
-		//	Chance for a diamond in the gap after this candle. All rng rolls
-		//	are deterministic, so daily runs place identical pickups. The
-		//	rolls happen unconditionally to keep the rng stream aligned no
-		//	matter which pickups the player collects.
+		//	Chance for a diamond in the middle of the gap after this candle.
 		const diamondRoll = this.rng.frac();
 		const diamondY = this.rng.between(30, GAME_HEIGHT - 30);
 		if (diamondRoll < Game.DIAMOND_CHANCE) {
-			this.diamondPickups.add(this.add.image(candleX + this.candleWidth + 14, diamondY, 'diamond'));
-		}
-
-		//	Chance for a floating news item. Type and headline are decided at
-		//	spawn time (seeded); the effect only applies if it gets collected.
-		const newsRoll = this.rng.frac();
-		const newsTypeIndex = this.rng.between(0, Game.NEWS_TYPES.length - 1);
-		const newsHeadlineIndex = this.rng.between(0, 2);
-		const newsY = this.rng.between(30, GAME_HEIGHT - 30);
-		if (newsRoll < Game.NEWS_PICKUP_CHANCE) {
-			const type = Game.NEWS_TYPES[newsTypeIndex]!;
-			const pickup = this.add.image(candleX + this.candleWidth + 34, newsY, 'news');
-			pickup.setData('newsType', type);
-			pickup.setData('headline', Game.NEWS_HEADLINES[type][newsHeadlineIndex]!);
-			this.newsPickups.add(pickup);
+			this.diamondPickups.add(this.add.image(candleX + this.candleWidth, diamondY, 'diamond'));
 		}
 
 		this.lastClose = ohlc.closeY;
@@ -491,9 +500,25 @@ export class Game extends Phaser.Scene {
 			);
 			this.nextCandleX += weekendTicks * this.candleWidth * 2;
 
-			//	A collected news item takes effect for the following week.
-			this.newsType = this.pendingNewsType;
-			this.pendingNewsType = null;
+			//	Weekend news: one newspaper floats in the middle of every
+			//	weekend gap. Collecting it shapes the week right after.
+			const newsTypeIndex = this.rng.between(0, Game.NEWS_TYPES.length - 1);
+			const newsHeadlineIndex = this.rng.between(0, 2);
+			const newsY = this.rng.between(40, GAME_HEIGHT - 40);
+			const type = Game.NEWS_TYPES[newsTypeIndex]!;
+			const pickup = this.add.image((candleX + this.nextCandleX) / 2, newsY, 'news');
+			pickup.setData('newsType', type);
+			pickup.setData('headline', Game.NEWS_HEADLINES[type][newsHeadlineIndex]!);
+			pickup.setData('targetWeek', this.weekIndex + 1);
+			this.newsPickups.add(pickup);
+
+			this.weekIndex++;
+			this.weekStartClose.set(this.weekIndex, this.lastClose);
+
+			//	Prune bookkeeping of weeks that are long behind the player.
+			this.weekCandles.delete(this.weekIndex - 3);
+			this.weekStartClose.delete(this.weekIndex - 3);
+			this.weekEffects.delete(this.weekIndex - 3);
 		}
 	}
 
@@ -501,11 +526,58 @@ export class Game extends Phaser.Scene {
 	collectNews(_: any, pickup: any) {
 		const type = pickup.getData('newsType') as keyof typeof Game.NEWS_HEADLINES;
 		const headline = pickup.getData('headline') as string;
+		const targetWeek = pickup.getData('targetWeek') as number;
 		pickup.destroy();
 
-		this.pendingNewsType = type;
+		this.weekEffects.set(targetWeek, type);
+		this.reshapeWeek(targetWeek, type);
 		this.sound.play('milestone', { volume: 0.25 });
 		this.showNewsBanner(type, headline);
+	}
+
+	//	Recomputes the target week's candles under the collected news effect
+	//	and morphs the already spawned ones to their new shape. Later weeks
+	//	are untouched (the weekend gap justifies the price jump).
+	reshapeWeek(week: number, type: keyof typeof Game.NEWS_HEADLINES) {
+		const entries = this.weekCandles.get(week);
+		if (!entries || entries.length === 0) return;
+
+		let close = this.weekStartClose.get(week) ?? GAME_HEIGHT / 2;
+		for (const entry of entries) {
+			const ohlc = this.computeCandle(close, entry.dirRoll, entry.strengthRoll, type);
+			close = ohlc.closeY;
+
+			const newH = Math.abs(ohlc.closeY - ohlc.openY) + 28;
+			const newMid = (ohlc.openY + ohlc.closeY) / 2;
+			const candle = entry.candle;
+
+			candle.setTexture(ohlc.closeY < ohlc.openY ? 'candle_green' : 'candle_red');
+
+			const startY = candle.y;
+			const startH = candle.height;
+			const proxy = { t: 0 };
+			this.tweens.add({
+				targets: proxy,
+				t: 1,
+				duration: 500,
+				ease: 'Sine.easeInOut',
+				onUpdate: () => {
+					candle.setSize(this.candleWidth, startH + (newH - startH) * proxy.t);
+					candle.y = startY + (newMid - startY) * proxy.t;
+				},
+				onComplete: () => {
+					const body = candle.body as Phaser.Physics.Arcade.StaticBody;
+					body.updateFromGameObject();
+					(body as unknown as Phaser.Physics.Arcade.Body).setSize(28, newH - 28, true).setOffset(1, 14);
+				},
+			});
+		}
+
+		//	If this week is still being spawned, remaining candles chain onto
+		//	the recomputed close.
+		if (this.weekIndex === week) {
+			this.lastClose = close;
+		}
 	}
 
 	showNewsBanner(type: keyof typeof Game.NEWS_HEADLINES, headline: string) {
