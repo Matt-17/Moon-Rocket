@@ -49,7 +49,7 @@ export class Menu extends Scene {
 			{ label: 'DIAMONDS', entries: this.registry.get('diamondLeaderboard') || [] },
 		]);
 
-		new StartButton(this, 100, 150).onClick(() => this.startGame());
+		new StartButton(this, 100, 170).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
 
 		// Diamond balance and today's best haul, bottom center
