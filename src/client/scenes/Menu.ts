@@ -141,9 +141,11 @@ export class Menu extends Scene {
 	}
 
 	createSoundToggle() {
+		//	Kept away from the bottom edge: Reddit's expanded view swallows
+		//	clicks in a gesture zone along the lowest screen pixels.
 		const soundText = this.add
-			.text(8, GAME_HEIGHT - 6, '', TextStyles.withFontSize(TextStyles.SMALL, '10px'))
-			.setOrigin(0, 1)
+			.text(200, 210, '', TextStyles.withFontSize(TextStyles.SMALL, '10px'))
+			.setOrigin(0, 0.5)
 			.setResolution(4);
 
 		const applyLabel = () => {
