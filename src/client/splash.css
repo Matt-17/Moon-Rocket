@@ -24,12 +24,19 @@ body {
 }
 
 .top-score {
-	min-height: 1em;
 	font-family: system-ui, sans-serif;
 	font-size: 13px;
 	font-weight: 700;
 	color: #ffffff;
-	text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+	background: rgba(0, 0, 0, 0.6);
+	padding: 4px 14px;
+	border-radius: 14px;
+}
+
+/*	The line starts empty until /api/init answers - don't show a bare
+	dark pill in the meantime. */
+.top-score:empty {
+	display: none;
 }
 
 .play-button {
