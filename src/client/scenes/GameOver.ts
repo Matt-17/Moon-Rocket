@@ -1,4 +1,3 @@
-import { showToast } from '@devvit/web/client';
 import { fetchInitData, saveScore } from '../api.js';
 import { StartButton } from '../components/StartButton.js';
 import { Background } from '../components/Background.js';
@@ -10,6 +9,7 @@ export class GameOver extends Phaser.Scene {
 	diamonds = 0
 	background!: Background;
 	private diamondResultText: Phaser.GameObjects.Text | null = null;
+	private performanceText!: Phaser.GameObjects.Text;
 
 	constructor() {
 		super('GameOver');
@@ -35,10 +35,13 @@ export class GameOver extends Phaser.Scene {
 		} else saveScore(this.score, this.diamonds, mode).then((result) => {
 			if (result) {
 				this.registry.set('playerStats', result.stats);
+
+				//	Celebrate in-scene: Reddit's native toast pops up at the
+				//	bottom of the post, right over the buttons.
 				if (result.newBest !== null) {
-					showToast(`Hooray, new personal best: ${result.newBest}!`);
+					this.showCelebration('NEW PERSONAL BEST!');
 				} else if (result.dailyNewBest !== null) {
-					showToast(`New daily best: ${result.dailyNewBest}!`);
+					this.showCelebration('NEW DAILY BEST!');
 				}
 
 				//	Show what this run actually earned - only the best haul of
@@ -76,7 +79,7 @@ export class GameOver extends Phaser.Scene {
 		else if (this.score >= 10) performanceMsg = 'Good effort!';
 		else performanceMsg = 'Keep trying!';
 
-		const performanceText = this.add
+		this.performanceText = this.add
 			.text(0, -10, performanceMsg, TextStyles.SUBTITLE_YELLOW)
 			.setOrigin(0.5)
 			.setResolution(4);
@@ -121,7 +124,7 @@ export class GameOver extends Phaser.Scene {
 
 		// Container with slide-in animation
 		const container = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2, [
-			gameOverTitle, scoreText, performanceText, ...diamondItems, replayButton, menuButton
+			gameOverTitle, scoreText, this.performanceText, ...diamondItems, replayButton, menuButton
 		]);
 
 		container.setAlpha(0);
@@ -133,6 +136,19 @@ export class GameOver extends Phaser.Scene {
 			duration: 500,
 			delay: 200,
 			ease: 'Back.easeOut'
+		});
+	}
+
+	//	Turns the performance line into a golden, briefly pulsing highlight.
+	private showCelebration(message: string) {
+		this.performanceText.setText(message).setColor('#FFD700');
+		this.tweens.add({
+			targets: this.performanceText,
+			scale: { from: 1, to: 1.2 },
+			duration: 250,
+			yoyo: true,
+			repeat: 2,
+			ease: 'Sine.easeInOut',
 		});
 	}
 
