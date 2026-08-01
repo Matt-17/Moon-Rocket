@@ -141,25 +141,28 @@ export class Menu extends Scene {
 	}
 
 	createSoundToggle() {
-		const label = () => `SOUND: ${this.sound.mute ? 'OFF' : 'ON'}`;
-
 		const soundText = this.add
-			.text(8, GAME_HEIGHT - 6, label(), TextStyles.withFontSize(TextStyles.SMALL, '10px'))
+			.text(8, GAME_HEIGHT - 6, '', TextStyles.withFontSize(TextStyles.SMALL, '10px'))
 			.setOrigin(0, 1)
-			.setResolution(4)
-			.setInteractive({ useHandCursor: true });
+			.setResolution(4);
 
-		soundText.on('pointerdown', () => {
+		const applyLabel = () => {
+			soundText.setText(this.sound.mute ? 'SOUND: OFF' : 'SOUND: ON');
+			soundText.setColor(this.sound.mute ? '#777777' : '#cccccc');
+			//	Text width changes with the label; refresh the hit area.
+			soundText.setInteractive({ useHandCursor: true });
+		};
+		applyLabel();
+
+		soundText.on('pointerup', () => {
 			this.sound.mute = !this.sound.mute;
-			soundText.setText(label());
+			applyLabel();
 			try {
 				localStorage.setItem('moonrocket-sound', this.sound.mute ? 'off' : 'on');
 			} catch {
 				// localStorage may be unavailable in some embedded contexts
 			}
 		});
-		soundText.on('pointerover', () => soundText.setTint(0xffff00));
-		soundText.on('pointerout', () => soundText.clearTint());
 	}
 
 	createLeaderboard(leaderboard: LeaderboardEntry[], title: string) {
