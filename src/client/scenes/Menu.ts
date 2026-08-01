@@ -2,6 +2,7 @@ import { Scene } from 'phaser'
 import { StartButton } from '../components/StartButton.js'
 import { Background } from '../components/Background.js'
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js'
+import { getSelectedSkin, SKINS, setSelectedSkin } from '../skins.js'
 import { TextStyles } from '../utils/TextStyles.js'
 import type { DailyInfo, LeaderboardEntry } from '../../shared/api.js'
 
@@ -72,7 +73,57 @@ export class Menu extends Scene {
 			.setOrigin(0, 0.5)
 			.setResolution(4);
 
+		this.createSkinPicker(playerStats.diamonds ?? 0);
 		this.createSoundToggle();
+	}
+
+	createSkinPicker(totalDiamonds: number) {
+		const rowY = 210;
+		const startX = 62;
+		const spacing = 32;
+
+		this.add
+			.text(startX - 24, rowY, 'SKIN:', TextStyles.withFontSize(TextStyles.SMALL, '10px'))
+			.setOrigin(1, 0.5)
+			.setResolution(4);
+
+		const selection = this.add
+			.rectangle(0, rowY, 24, 22)
+			.setStrokeStyle(1, 0xffff00)
+			.setFillStyle(0, 0);
+
+		const selectSkin = (key: string) => {
+			setSelectedSkin(key);
+			const index = SKINS.findIndex((s) => s.key === key);
+			selection.setX(startX + index * spacing);
+		};
+
+		SKINS.forEach((skin, index) => {
+			const x = startX + index * spacing;
+			const unlocked = skin.cost <= totalDiamonds;
+
+			//	Render each skin at roughly uniform display height.
+			const icon = this.add.sprite(x, rowY, skin.key, 0).setInteractive({ useHandCursor: true });
+			icon.setScale(14 / icon.height);
+
+			if (!unlocked) {
+				icon.setAlpha(0.35);
+				this.add
+					.text(x, rowY + 13, `${skin.cost}`, TextStyles.withFontSize(TextStyles.SMALL, '8px'))
+					.setOrigin(0.5, 0)
+					.setResolution(4);
+			}
+
+			icon.on('pointerdown', () => {
+				if (unlocked) {
+					selectSkin(skin.key);
+				} else {
+					icon.setAlpha(0.35);
+				}
+			});
+		});
+
+		selectSkin(getSelectedSkin(totalDiamonds).key);
 	}
 
 	createSoundToggle() {

@@ -1,5 +1,6 @@
 import { Background } from "../components/Background.js";
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from "../constants.js";
+import { getSelectedSkin, type SkinDefinition } from "../skins.js";
 import { TextStyles } from "../utils/TextStyles.js";
 import type { DailyInfo } from "../../shared/api.js";
 
@@ -70,6 +71,9 @@ export class Game extends Phaser.Scene {
 	private diamondHud!: Phaser.GameObjects.Container;
 	private diamondHudText!: Phaser.GameObjects.Text;
 
+	// Selected skin (only the rocket has animation frames)
+	private skin!: SkinDefinition;
+
 	constructor() {
 		super('Game');
 	}
@@ -128,27 +132,34 @@ export class Game extends Phaser.Scene {
 		this.scores = this.physics.add.staticGroup();
 		this.diamondPickups = this.physics.add.staticGroup();
 
-		// Create rocket (positioned at 25% of the screen width)
+		// Create player sprite (positioned at 25% of the screen width)
+		this.skin = getSelectedSkin(this.registry.get('playerStats')?.diamonds ?? 0);
 		this.rocket = this.physics.add
-			.sprite(GAME_WIDTH * 0.25, GAME_HEIGHT / 2, 'rocket')
+			.sprite(GAME_WIDTH * 0.25, GAME_HEIGHT / 2, this.skin.key)
 			.setRotation(0)
-			.play('rocket_idle');
+			.setScale(this.skin.scale);
+		this.playSkinAnim('rocket_idle');
 
 		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
 		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
 		this.physics.add.overlap(this.rocket, this.diamondPickups, this.collectDiamond, undefined, this);
 
-		(this.rocket.body as Phaser.Physics.Arcade.Body)
-			.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
-			.setOffset(10, 3);
+		if (this.skin.key === 'rocket') {
+			(this.rocket.body as Phaser.Physics.Arcade.Body)
+				.setSize(this.rocket.width - 16, this.rocket.height - 7, true)
+				.setOffset(10, 3);
+		} else {
+			// Alternate skins are static images; use a comparable hitbox.
+			(this.rocket.body as Phaser.Physics.Arcade.Body).setSize(20, 16, true);
+		}
 
 		this.rocketFlap = this.tweens.chain({
 			targets: this.rocket,
 			paused: true,
 			persist: true,
 			tweens: [
-				{ scale: 1.2, rotation: -0.3, duration: 50 },
-				{ scale: 1, duration: 150, ease: 'Power2' },
+				{ scale: this.skin.scale * 1.2, rotation: -0.3, duration: 50 },
+				{ scale: this.skin.scale, duration: 150, ease: 'Power2' },
 				{ rotation: 0, duration: 250, ease: 'Power2' },
 
 			]
@@ -369,12 +380,12 @@ export class Game extends Phaser.Scene {
 		this.sound.play('flap', { volume: 0.3 });
 
 		// Play thrust animation
-		this.rocket.play('rocket_thrust');
+		this.playSkinAnim('rocket_thrust');
 
 		// Return to idle animation after a short delay
 		this.time.delayedCall(200, () => {
 			if (!this.gameOver) {
-				this.rocket.play('rocket_idle');
+				this.playSkinAnim('rocket_idle');
 			}
 		});
 
@@ -393,7 +404,7 @@ export class Game extends Phaser.Scene {
 		this.physics.world.resume();
 
 		// Reset rocket to idle animation
-		this.rocket.play('rocket_idle');
+		this.playSkinAnim('rocket_idle');
 
 		// Start rocket moving forward
 		const rocketBody = this.rocket.body as Phaser.Physics.Arcade.Body;
@@ -502,7 +513,7 @@ export class Game extends Phaser.Scene {
 		this.gameOver = true;
 
 		// Play crash animation
-		this.rocket.play('rocket_crash');
+		this.playSkinAnim('rocket_crash');
 
 		// Visual feedback
 		this.cameras.main.shake(200, 0.02);
@@ -527,6 +538,13 @@ export class Game extends Phaser.Scene {
 		this.time.delayedCall(800, () => {
 			this.scene.start('GameOver', { score: this.getDisplayScore(), diamonds: this.diamondsCollected });
 		});
+	}
+
+	//	Plays a rocket animation - alternate skins are static images.
+	playSkinAnim(anim: string) {
+		if (this.skin.key === 'rocket') {
+			this.rocket.play(anim);
+		}
 	}
 
 	// MARK: - Collect diamond
