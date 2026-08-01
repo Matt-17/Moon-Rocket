@@ -23,9 +23,10 @@ export class Preloader extends Scene {
 		this.load.image('candle_red', 'candle_red.png');
 		this.load.image('candle_green', 'candle_green.png');
 
-		this.load.image('buy', 'buy.png');		
+		this.load.image('buy', 'buy.png');
 		this.load.image('star', 'star.png');
 		this.load.image('diamond', 'diamond.png');
+		this.load.image('news', 'news.png');
 		
 		this.load.audio('flap', 'flap.ogg');
 		this.load.audio('milestone', 'milestone.ogg');

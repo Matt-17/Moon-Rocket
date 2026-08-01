@@ -49,6 +49,20 @@ export class Game extends Phaser.Scene {
 	private spawnedTriggers = 0;
 	private pbTriggerIndex = 0;
 
+	// News events: market phases announced by a ticker, biasing the candles
+	// for the following week. All randomness goes through this.rng so daily
+	// challenge runs stay identical for every player.
+	private static readonly NEWS_CHANCE = 0.45;
+	private static readonly NEWS_HEADLINES = {
+		bull: ['FED CUTS RATES!', 'MOON MISSION APPROVED!', 'INSTITUTIONS ARE BUYING!'],
+		bear: ['SEC INVESTIGATION!', 'RUG PULL RUMORS!', 'GAINS TAX INCOMING!'],
+		volatile: ['ELON TWEETS AGAIN!', 'EARNINGS WEEK CHAOS!', 'ALGO TRADERS GONE WILD!'],
+	} as const;
+	private newsType: keyof typeof Game.NEWS_HEADLINES | null = null;
+	private newsWeeksLeft = 0;
+	private newsBanner!: Phaser.GameObjects.Container;
+	private newsText!: Phaser.GameObjects.Text;
+
 	constructor() {
 		super('Game');
 	}
@@ -77,6 +91,9 @@ export class Game extends Phaser.Scene {
 		this.bestScore = daily
 			? (daily.myBest ?? 0)
 			: (this.registry.get('playerStats')?.highscore ?? 0);
+
+		this.newsType = null;
+		this.newsWeeksLeft = 0;
 		this.spawnedTriggers = 0;
 		this.pbTriggerIndex = 0;
 		if (this.bestScore > 0) {
@@ -137,6 +154,19 @@ export class Game extends Phaser.Scene {
 			.setResolution(4)
 			.setDepth(1000);
 
+		// News ticker banner (hidden until a news event fires)
+		this.newsText = this.add
+			.text(12, 0, '', TextStyles.withFontSize(TextStyles.SCORE, '12px'))
+			.setOrigin(0, 0.5)
+			.setResolution(4);
+		this.newsBanner = this.add
+			.container(0, 0, [
+				this.add.image(0, 0, 'news').setOrigin(0, 0.5).setScale(0.6),
+				this.newsText,
+			])
+			.setDepth(900)
+			.setVisible(false);
+
 		// Add start instructions
 		const startText = this.add
 			.text(GAME_WIDTH / 2, GAME_HEIGHT / 2 - 50, 'Click to Start!\nClick to Thrust', TextStyles.BODY)
@@ -153,14 +183,14 @@ export class Game extends Phaser.Scene {
 		// Ensure physics world is running
 		this.cameras.main.startFollow(this.rocket, false, 1, 0, - GAME_WIDTH / 4, 0);
 		this.cameras.main.on(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, () => {
-			// Keep the score display pinned to the top-left of the camera view.
-			// midPoint is used instead of worldView because worldView is
-			// rounded to whole pixels, which would make the text jitter.
+			// Keep the HUD pinned to the camera view. midPoint is used instead
+			// of worldView because worldView is rounded to whole pixels, which
+			// would make the elements jitter.
 			const cam = this.cameras.main;
-			this.scoreText.setPosition(
-				cam.midPoint.x - cam.displayWidth / 2 + 16,
-				cam.midPoint.y - cam.displayHeight / 2 + 16
-			);
+			const viewLeft = cam.midPoint.x - cam.displayWidth / 2;
+			const viewTop = cam.midPoint.y - cam.displayHeight / 2;
+			this.scoreText.setPosition(viewLeft + 16, viewTop + 16);
+			this.newsBanner.setPosition(viewLeft + cam.displayWidth / 2 - 80, viewTop + 40);
 		});
 		this.physics.world.pause();
 	}
@@ -179,8 +209,9 @@ export class Game extends Phaser.Scene {
 
 		const openY = this.lastClose;
 
-		// 1) Richtung wählen
-		let goDown = this.rng.between(0, 1) === 0;
+		// 1) Richtung wählen (Marktphasen verschieben die Wahrscheinlichkeit)
+		const downChance = this.newsType === 'bull' ? 0.25 : this.newsType === 'bear' ? 0.75 : 0.5;
+		let goDown = this.rng.frac() < downChance;
 
 		// 2) Genug Platz für trendStrengthMin?
 		const roomUp = openY - minY;
@@ -189,8 +220,11 @@ export class Game extends Phaser.Scene {
 		if (goDown && roomDown < this.trendStrengthMin) goDown = false;
 		if (!goDown && roomUp < this.trendStrengthMin) goDown = true;
 
-		// 3) Zufällige Stärke zwischen min und max
-		const chosen = this.rng.between(this.trendStrengthMin, this.trendStrengthMax);
+		// 3) Zufällige Stärke zwischen min und max (volatile Wochen schlagen stärker aus)
+		const strengthScale = this.newsType === 'volatile' ? 1.7 : 1;
+		const chosen = Math.round(
+			this.rng.between(this.trendStrengthMin, this.trendStrengthMax) * strengthScale
+		);
 
 		// 4) Falls zu weit, kürzen
 		const maxAllowed = goDown ? roomDown : roomUp;
@@ -387,7 +421,46 @@ export class Game extends Phaser.Scene {
 				this.weekendGapMax
 			);
 			this.nextCandleX += weekendTicks * this.candleWidth * 2;
+
+			this.updateNews();
 		}
+	}
+
+	// MARK: - News events
+	//	Called at every week boundary. Note: the rng calls happen
+	//	unconditionally and in a fixed order to keep daily runs deterministic.
+	updateNews() {
+		if (this.newsWeeksLeft > 0) {
+			this.newsWeeksLeft--;
+			if (this.newsWeeksLeft === 0) {
+				this.newsType = null;
+			}
+		}
+
+		const roll = this.rng.frac();
+		if (this.newsType === null && roll < Game.NEWS_CHANCE) {
+			const types = Object.keys(Game.NEWS_HEADLINES) as (keyof typeof Game.NEWS_HEADLINES)[];
+			this.newsType = types[this.rng.between(0, types.length - 1)]!;
+			this.newsWeeksLeft = 1;
+
+			const headlines = Game.NEWS_HEADLINES[this.newsType];
+			this.showNewsBanner(headlines[this.rng.between(0, headlines.length - 1)]!);
+		}
+	}
+
+	showNewsBanner(headline: string) {
+		const color = this.newsType === 'bull' ? '#1ec51e' : this.newsType === 'bear' ? '#f7323c' : '#ffff88';
+		this.newsText.setText(headline).setColor(color);
+
+		this.newsBanner.setAlpha(0).setVisible(true);
+		this.tweens.add({
+			targets: this.newsBanner,
+			alpha: 1,
+			duration: 250,
+			yoyo: true,
+			hold: 3200,
+			onComplete: () => this.newsBanner.setVisible(false),
+		});
 	}
 
 
