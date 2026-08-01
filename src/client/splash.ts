@@ -19,16 +19,15 @@ fetch('/api/init')
 	.then((data) => {
 		if (!data) return;
 
-		if (data.daily) {
-			const top = data.daily.leaderboard[0];
+		const top = data.challenge.leaderboard[0];
+		if (data.challenge.isToday) {
 			topScore.textContent = top
 				? `Today's best: ${top.score} by u/${top.username}`
 				: 'No scores yet today — be the first!';
 		} else {
-			const top = data.leaderboard[0];
-			if (top) {
-				topScore.textContent = `Beat u/${top.username}: ${top.score}!`;
-			}
+			topScore.textContent = top
+				? `Final result: ${top.score} by u/${top.username}`
+				: `Archive — ${data.challenge.date}`;
 		}
 	})
 	.catch(() => {});

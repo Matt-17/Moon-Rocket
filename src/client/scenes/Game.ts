@@ -2,7 +2,7 @@ import { Background } from "../components/Background.js";
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from "../constants.js";
 import { getSelectedSkin, type SkinDefinition } from "../skins.js";
 import { TextStyles } from "../utils/TextStyles.js";
-import type { DailyInfo } from "../../shared/api.js";
+import type { ChallengeInfo, GameMode } from "../../shared/api.js";
 
 export class Game extends Phaser.Scene {
 	// Game objects
@@ -98,19 +98,21 @@ export class Game extends Phaser.Scene {
 		this.lastClose = GAME_HEIGHT / 2;
 		this.weeksDone = 0;
 
-		//	On daily challenge posts the candle sequence is generated from a
-		//	per-day seed, so every player faces the same market.
-		const daily: DailyInfo | null = this.registry.get('daily');
+		//	Challenge runs (today's or an archived date) use the date seed, so
+		//	every player faces the same market; random mode rolls fresh.
+		const challenge: ChallengeInfo | null = this.registry.get('challenge');
+		const mode: GameMode = this.registry.get('gameMode') ?? 'daily';
+		const seeded = challenge && (!challenge.isToday || mode === 'daily');
 		this.rng = new Phaser.Math.RandomDataGenerator(
-			daily ? [`moonrocket-${daily.date}`] : [`${Math.random()}`]
+			seeded ? [`moonrocket-${challenge.date}`] : [`${Math.random()}`]
 		);
 
 		//	The personal best is marked in the level: passing the n-th score
 		//	trigger yields floor(n^1.5) points, so find the first trigger that
 		//	beats the current best and drop a marker there when it spawns.
-		//	On daily posts the day's own best is the relevant reference.
-		this.bestScore = daily
-			? (daily.myBest ?? 0)
+		//	Challenge runs reference the day's own best.
+		this.bestScore = seeded
+			? (challenge.myBest ?? 0)
 			: (this.registry.get('playerStats')?.highscore ?? 0);
 
 		this.weekIndex = 0;

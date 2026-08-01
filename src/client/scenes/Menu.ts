@@ -4,7 +4,7 @@ import { Background } from '../components/Background.js'
 import { GAME_HEIGHT, GAME_WIDTH, RENDER_SCALE } from '../constants.js'
 import { getSelectedSkin, SKINS, setSelectedSkin } from '../skins.js'
 import { TextStyles } from '../utils/TextStyles.js'
-import type { DailyInfo, LeaderboardEntry } from '../../shared/api.js'
+import type { ChallengeInfo, GameMode, LeaderboardEntry } from '../../shared/api.js'
 
 export class Menu extends Scene {
 	background!: Background;
@@ -23,26 +23,28 @@ export class Menu extends Scene {
 		//	or store data that you want to access in other scenes.
 		const playerStats = this.registry.get('playerStats')
 		const leaderboard: LeaderboardEntry[] = this.registry.get('leaderboard') || []
-		const daily: DailyInfo | null = this.registry.get('daily') || null
+		const challenge: ChallengeInfo | null = this.registry.get('challenge') || null
 
 		// Logo
 		this.add.image(100, 20, 'logo').setOrigin(0.5, 0);
 
-		//	On daily challenge posts, show the date and today's board instead
-		//	of the all-time leaderboard.
-		if (daily) {
+		if (challenge && !challenge.isToday) {
+			//	Archived challenge: replayable, but nothing is scored.
 			this.add
-				.text(100, 114, `DAILY CHALLENGE ${daily.date}`,
+				.text(100, 114, `ARCHIVE ${challenge.date} — NO SCORING`,
 					TextStyles.withAlign(TextStyles.withFontSize(TextStyles.SMALL, '10px'), 'center'))
 				.setOrigin(0.5, 0)
 				.setResolution(4);
+		} else {
+			this.createModeToggle();
 		}
 
-		// Leaderboard tabs. The daily board only exists on daily challenge
-		// posts - regular posts play with random seeds and do not compete
-		// on it.
+		// Leaderboard tabs: the challenge board (today's global race, or the
+		// frozen board of an archived date) plus this subreddit's boards.
 		this.createLeaderboardTabs([
-			...(daily ? [{ label: 'DAILY', entries: daily.leaderboard }] : []),
+			...(challenge
+				? [{ label: challenge.isToday ? 'TODAY' : 'ARCHIVE', entries: challenge.leaderboard }]
+				: []),
 			{ label: 'SCORE', entries: leaderboard },
 			{ label: 'DIAMONDS', entries: this.registry.get('diamondLeaderboard') || [] },
 		]);
@@ -183,6 +185,38 @@ export class Menu extends Scene {
 			onText.clearTint();
 			offText.clearTint();
 		});
+	}
+
+	//	Mode toggle under the logo: today's seeded challenge (default) or a
+	//	fresh random market. The choice lives in the registry and is read by
+	//	the Game scene.
+	createModeToggle() {
+		const options: { mode: GameMode; label: string; y: number }[] = [
+			{ mode: 'daily', label: "TODAY'S CHALLENGE", y: 110 },
+			{ mode: 'random', label: 'RANDOM', y: 124 },
+		];
+
+		const texts: Phaser.GameObjects.Text[] = [];
+		const current: GameMode = this.registry.get('gameMode') ?? 'daily';
+
+		const select = (mode: GameMode) => {
+			this.registry.set('gameMode', mode);
+			options.forEach((option, i) => {
+				texts[i]!.setColor(option.mode === mode ? '#ffff00' : '#888888');
+			});
+		};
+
+		options.forEach((option) => {
+			const text = this.add
+				.text(100, option.y, option.label, TextStyles.withAlign(TextStyles.withFontSize(TextStyles.SMALL, '10px'), 'center'))
+				.setOrigin(0.5, 0)
+				.setResolution(4)
+				.setInteractive({ useHandCursor: true });
+			text.on('pointerdown', () => select(option.mode));
+			texts.push(text);
+		});
+
+		select(current);
 	}
 
 	//	Tabbed leaderboards in the right column. The first tab (daily) is

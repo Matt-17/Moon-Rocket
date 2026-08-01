@@ -31,8 +31,8 @@
         "endpoint": "/internal/menu/post-create"
       },
       {
-        "label": "Create Daily Challenge Post",
-        "description": "Creates today's Moon Rocket daily challenge post",
+        "label": "Create Daily Recap Post",
+        "description": "Posts yesterday's Moon Rocket results with a replayable archive",
         "location": "subreddit",
         "forUserType": "moderator",
         "endpoint": "/internal/menu/daily-post-create"
@@ -43,7 +43,7 @@
     "tasks": {
       "daily-challenge": {
         "endpoint": "/internal/scheduler/daily-post",
-        "cron": "0 12 * * *"
+        "cron": "15 0 * * *"
       }
     }
   },

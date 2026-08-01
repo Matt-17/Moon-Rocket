@@ -23,7 +23,16 @@ export class GameOver extends Phaser.Scene {
 	create() {
 		this.cameras.main.setZoom(RENDER_SCALE).centerOn(GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
-		saveScore(this.score, this.diamonds).then((result) => {
+		const challenge = this.registry.get('challenge');
+		const isArchive = challenge ? !challenge.isToday : false;
+		const mode = this.registry.get('gameMode') ?? 'daily';
+
+		//	Archived challenges are replay-only: nothing is submitted.
+		if (isArchive) {
+			this.time.delayedCall(0, () => {
+				this.diamondResultText?.setText(`+${this.diamonds}  (archive - not scored)`);
+			});
+		} else saveScore(this.score, this.diamonds, mode).then((result) => {
 			if (result) {
 				this.registry.set('playerStats', result.stats);
 				if (result.newBest !== null) {
@@ -134,12 +143,11 @@ export class GameOver extends Phaser.Scene {
 
 	goToMenu() {
 		// Fetch fresh stats and leaderboard so the menu shows up-to-date data
-		fetchInitData().then(({ stats, leaderboard, diamondLeaderboard, todayLeaderboard, daily, playerCounts }) => {
+		fetchInitData().then(({ stats, leaderboard, diamondLeaderboard, challenge, playerCounts }) => {
 			this.registry.set('playerStats', stats);
 			this.registry.set('leaderboard', leaderboard);
 			this.registry.set('diamondLeaderboard', diamondLeaderboard);
-			this.registry.set('todayLeaderboard', todayLeaderboard);
-			this.registry.set('daily', daily);
+			this.registry.set('challenge', challenge);
 			this.registry.set('playerCounts', playerCounts);
 
 			this.cameras.main.fade(200, 0, 0, 0);
