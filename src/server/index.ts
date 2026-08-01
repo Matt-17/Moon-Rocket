@@ -153,6 +153,22 @@ api.get('/init', async (c) => {
 	return c.json<InitResponse>({ stats, leaderboard, daily });
 });
 
+//	Announces a run that entered the Top 10 with a comment under the post.
+async function announceTopTenEntry(member: string, score: number, rank: number) {
+	const { postId } = context;
+	if (!postId) return;
+
+	try {
+		const [, username] = member.split(':');
+		await reddit.submitComment({
+			id: postId,
+			text: `🚀 u/${username} just reached floor ${score} — #${rank} on the leaderboard!`,
+		});
+	} catch (error) {
+		console.error('Error posting top ten comment:', error);
+	}
+}
+
 //	Saves the score of a finished run. Called by the GameOver scene.
 api.post('/score', async (c) => {
 	const { userId } = context;
@@ -162,10 +178,11 @@ api.post('/score', async (c) => {
 		return c.json({ status: 'error', message: 'Invalid request' }, 400);
 	}
 
-	const [currentHighscore, dailyDate, member] = await Promise.all([
+	const [currentHighscore, dailyDate, member, rankBefore] = await Promise.all([
 		redis.zScore(highscoresKey(), userId),
 		context.postId ? redis.get(dailyPostKey(context.postId)) : Promise.resolve(undefined),
 		getLeaderboardMember(userId),
+		getUserRank(userId),
 	]);
 
 	const isNewBest = currentHighscore === undefined || currentHighscore === null || score > currentHighscore;
@@ -185,6 +202,14 @@ api.post('/score', async (c) => {
 		isNewBest ? redis.zAdd(leaderboardKey(), { member, score }) : Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
 	]);
+
+	//	Celebrate runs that climb into the Top 10 with a comment on the post.
+	if (isNewBest) {
+		const rankAfter = await getUserRank(userId);
+		if (rankAfter !== null && rankAfter <= 10 && (rankBefore === null || rankAfter < rankBefore)) {
+			await announceTopTenEntry(member, score, rankAfter);
+		}
+	}
 
 	return c.json<SaveScoreResponse>({
 		newBest: isNewBest ? score : null,
