@@ -141,24 +141,34 @@ export class Menu extends Scene {
 	}
 
 	createSoundToggle() {
-		//	Kept away from the bottom edge: Reddit's expanded view swallows
-		//	clicks in a gesture zone along the lowest screen pixels.
-		const soundText = this.add
-			.text(200, 210, '', TextStyles.withFontSize(TextStyles.SMALL, '10px'))
-			.setOrigin(0, 0.5)
+		//	Both labels are pre-rendered and toggled via visibility - more
+		//	reliable than re-rendering the text on click.
+		const style = TextStyles.withFontSize(TextStyles.SMALL, '10px');
+		const onText = this.add
+			.text(8, GAME_HEIGHT - 6, 'SOUND: ON', style)
+			.setOrigin(0, 1)
+			.setResolution(4);
+		const offText = this.add
+			.text(8, GAME_HEIGHT - 6, 'SOUND: OFF', TextStyles.withColor(style, '#888888'))
+			.setOrigin(0, 1)
 			.setResolution(4);
 
-		const applyLabel = () => {
-			soundText.setText(this.sound.mute ? 'SOUND: OFF' : 'SOUND: ON');
-			soundText.setColor(this.sound.mute ? '#777777' : '#cccccc');
-			//	Text width changes with the label; refresh the hit area.
-			soundText.setInteractive({ useHandCursor: true });
+		const sync = () => {
+			onText.setVisible(!this.sound.mute);
+			offText.setVisible(this.sound.mute);
 		};
-		applyLabel();
+		sync();
 
-		soundText.on('pointerup', () => {
+		//	Invisible, generously sized hit area on top of the label.
+		const hit = this.add
+			.rectangle(4, GAME_HEIGHT, 78, 22)
+			.setOrigin(0, 1)
+			.setFillStyle(0, 0)
+			.setInteractive({ useHandCursor: true });
+
+		hit.on('pointerdown', () => {
 			this.sound.mute = !this.sound.mute;
-			applyLabel();
+			sync();
 			try {
 				localStorage.setItem('moonrocket-sound', this.sound.mute ? 'off' : 'on');
 			} catch {

@@ -220,6 +220,9 @@ export class Game extends Phaser.Scene {
 		this.input.on('pointerdown', this.thrustRocket, this);
 		this.input.keyboard?.on('keydown-SPACE', this.thrustRocket, this);
 
+		// Escape aborts the run and returns to the menu (no score saved)
+		this.input.keyboard?.on('keydown-ESC', () => this.scene.start('Menu'), this);
+
 		// Ensure physics world is running
 		this.cameras.main.startFollow(this.rocket, false, 1, 0, - GAME_WIDTH / 4, 0);
 		this.cameras.main.on(Phaser.Cameras.Scene2D.Events.FOLLOW_UPDATE, () => {

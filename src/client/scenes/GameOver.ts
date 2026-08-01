@@ -76,6 +76,7 @@ export class GameOver extends Phaser.Scene {
 		// Play again button using the component
 		const replayButton = new StartButton(this, 0, 50).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
+		this.input.keyboard?.on('keydown-ESC', () => this.goToMenu(), this);
 
 		// Menu button (small text without background)
 		const menuButton = this.add
