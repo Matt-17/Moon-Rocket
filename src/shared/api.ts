@@ -31,6 +31,12 @@ export type InitResponse = {
 	stats: PlayerStats
 	leaderboard: LeaderboardEntry[]
 	daily: DailyInfo | null
+	//	Unique players who submitted at least one run in the period.
+	playerCounts: {
+		today: number
+		week: number
+		month: number
+	}
 }
 
 export type SaveScoreRequest = {

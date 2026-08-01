@@ -17,10 +17,11 @@ export class Boot extends Scene {
 		//	Load the player stats and leaderboard from the Devvit server before
 		//	starting the game. Outside of Reddit fetchInitData falls back to
 		//	empty data.
-		fetchInitData().then(({ stats, leaderboard, daily }) => {
+		fetchInitData().then(({ stats, leaderboard, daily, playerCounts }) => {
 			this.registry.set('playerStats', stats);
 			this.registry.set('leaderboard', leaderboard);
 			this.registry.set('daily', daily);
+			this.registry.set('playerCounts', playerCounts);
 			this.scene.start('Preloader');
 		});
 	}

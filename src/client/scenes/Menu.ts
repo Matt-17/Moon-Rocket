@@ -75,6 +75,20 @@ export class Menu extends Scene {
 
 		this.createSkinPicker(playerStats.diamonds ?? 0);
 		this.createSoundToggle();
+
+		// Player activity, bottom-right corner
+		const counts = this.registry.get('playerCounts');
+		if (counts) {
+			this.add
+				.text(
+					GAME_WIDTH - 8,
+					GAME_HEIGHT - 6,
+					`PLAYERS · TODAY ${counts.today} · WEEK ${counts.week} · MONTH ${counts.month}`,
+					TextStyles.withFontSize(TextStyles.SMALL, '10px')
+				)
+				.setOrigin(1, 1)
+				.setResolution(4);
+		}
 	}
 
 	createSkinPicker(totalDiamonds: number) {

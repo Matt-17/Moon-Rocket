@@ -23,6 +23,22 @@ const leaderboardKey = () => `${context.subredditId}:leaderboard`;
 const dailyPostKey = (postId: string) => `daily:${postId}`;
 const dailyLeaderboardKey = (date: string) => `${context.subredditId}:daily:${date}:leaderboard`;
 
+//	Unique-player tracking: one zset per period, members are user ids.
+const playersKey = (period: string) => `${context.subredditId}:players:${period}`;
+
+function playerPeriods(now = new Date()): { day: string; week: string; month: string } {
+	const day = now.toISOString().slice(0, 10);
+	const month = day.slice(0, 7);
+
+	// ISO 8601 week number
+	const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+	d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+	const weekNo = Math.ceil((((d.getTime() - Date.UTC(d.getUTCFullYear(), 0, 1)) / 86400000) + 1) / 7);
+	const week = `${d.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+
+	return { day: `day:${day}`, week: `week:${week}`, month: `month:${month}` };
+}
+
 const STARTER_NAMES = [
 	'RocketPioneer', 'MoonExplorer', 'StarSeeker', 'CosmicDreamer', 'SpaceVoyager',
 	'GalaxyWanderer', 'AstroTrailblazer', 'NebulaDrifter', 'OrbitChaser', 'StellarRookie',
@@ -148,12 +164,21 @@ const api = new Hono();
 //	to the menu. On daily posts it also carries the daily challenge info.
 api.get('/init', async (c) => {
 	const { userId } = context;
-	const [leaderboard, stats, daily] = await Promise.all([
+	const periods = playerPeriods();
+	const [leaderboard, stats, daily, today, week, month] = await Promise.all([
 		getLeaderboard(10),
 		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null, diamonds: 0 }),
 		getDailyInfo(),
+		redis.zCard(playersKey(periods.day)),
+		redis.zCard(playersKey(periods.week)),
+		redis.zCard(playersKey(periods.month)),
 	]);
-	return c.json<InitResponse>({ stats, leaderboard, daily });
+	return c.json<InitResponse>({
+		stats,
+		leaderboard,
+		daily,
+		playerCounts: { today: today ?? 0, week: week ?? 0, month: month ?? 0 },
+	});
 });
 
 //	Achievement flairs, highest tier first. Reaching a new tier with a new
@@ -234,11 +259,15 @@ api.post('/score', async (c) => {
 		}
 	}
 
+	const periods = playerPeriods();
 	await Promise.all([
 		isNewBest ? redis.zAdd(highscoresKey(), { member: userId, score }) : Promise.resolve(),
 		isNewBest ? redis.zAdd(leaderboardKey(), { member, score }) : Promise.resolve(),
 		redis.hIncrBy(attemptsKey(), userId, 1),
 		collectedDiamonds > 0 ? redis.hIncrBy(diamondsKey(), userId, collectedDiamonds) : Promise.resolve(),
+		redis.zAdd(playersKey(periods.day), { member: userId, score: 1 }),
+		redis.zAdd(playersKey(periods.week), { member: userId, score: 1 }),
+		redis.zAdd(playersKey(periods.month), { member: userId, score: 1 }),
 	]);
 
 	//	Celebrate runs that climb into the Top 10 with a comment on the post,
