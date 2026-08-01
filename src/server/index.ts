@@ -64,7 +64,9 @@ async function readLeaderboard(key: string, limit = 10): Promise<LeaderboardEntr
 }
 
 async function readGlobalLeaderboard(key: string, limit = 10): Promise<LeaderboardEntry[]> {
-	return parseLeaderboard(await redis.global.zRange(key, 0, limit - 1, { reverse: true, by: 'rank' }));
+	return parseLeaderboard(
+		await dailyBoardCall((client) => client.zRange(key, 0, limit - 1, { reverse: true, by: 'rank' }))
+	);
 }
 
 async function getLeaderboard(limit = 10): Promise<LeaderboardEntry[]> {
@@ -127,6 +129,24 @@ async function getPlayerStats(userId: string): Promise<PlayerStats> {
 //	installed in. Everyone plays the same seeded market per date.
 const globalDailyBoardKey = (date: string) => `daily:${date}:leaderboard`;
 
+//	Global redis is gated per app by Reddit and may be rejected at runtime
+//	("FAILED_PRECONDITION: global redis is not supported on this app").
+//	Fall back to the subreddit-scoped client so the daily challenge still
+//	works - per community instead of across installs.
+let globalRedisAvailable = true;
+
+async function dailyBoardCall<T>(fn: (client: Omit<typeof redis, 'global'>) => Promise<T>): Promise<T> {
+	if (globalRedisAvailable) {
+		try {
+			return await fn(redis.global);
+		} catch (error) {
+			globalRedisAvailable = false;
+			console.warn('Global redis unavailable, using per-subreddit daily boards:', error);
+		}
+	}
+	return fn(redis);
+}
+
 function todayDate(): string {
 	return new Date().toISOString().slice(0, 10);
 }
@@ -145,7 +165,9 @@ async function getChallengeInfo(): Promise<ChallengeInfo> {
 		const [leaderboard, myBest] = await Promise.all([
 			readGlobalLeaderboard(globalDailyBoardKey(date)),
 			userId
-				? getLeaderboardMember(userId).then((member) => redis.global.zScore(globalDailyBoardKey(date), member))
+				? getLeaderboardMember(userId).then((member) =>
+						dailyBoardCall((client) => client.zScore(globalDailyBoardKey(date), member))
+					)
 				: Promise.resolve(undefined),
 		]);
 		return { date, isToday, leaderboard, myBest: Number(myBest ?? 0) };
@@ -296,14 +318,19 @@ api.post('/score', async (c) => {
 
 	const isNewBest = currentHighscore === undefined || currentHighscore === null || score > currentHighscore;
 
-	//	Daily-mode runs compete on the GLOBAL board for today.
+	//	Daily-mode runs compete on the GLOBAL board for today. A failing
+	//	board update must never block the rest of the run credit below.
 	let dailyNewBest: number | null = null;
 	if (mode !== 'random') {
-		const boardKey = globalDailyBoardKey(todayDate());
-		const currentDailyBest = await redis.global.zScore(boardKey, member);
-		if (currentDailyBest === undefined || currentDailyBest === null || score > currentDailyBest) {
-			await redis.global.zAdd(boardKey, { member, score });
-			dailyNewBest = score;
+		try {
+			const boardKey = globalDailyBoardKey(todayDate());
+			const currentDailyBest = await dailyBoardCall((client) => client.zScore(boardKey, member));
+			if (currentDailyBest === undefined || currentDailyBest === null || score > currentDailyBest) {
+				await dailyBoardCall((client) => client.zAdd(boardKey, { member, score }));
+				dailyNewBest = score;
+			}
+		} catch (error) {
+			console.error('Error updating daily board:', error);
 		}
 	}
 
