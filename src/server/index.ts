@@ -100,11 +100,13 @@ async function getUserRank(userId: string): Promise<number | null> {
 }
 
 async function getPlayerStats(userId: string): Promise<PlayerStats> {
-	const [highscore, attempts, rank, diamonds] = await Promise.all([
+	const periods = playerPeriods();
+	const [highscore, attempts, rank, diamonds, diamondsToday] = await Promise.all([
 		redis.zScore(highscoresKey(), userId),
 		redis.hGet(attemptsKey(), userId),
 		getUserRank(userId),
 		redis.hGet(diamondsKey(), userId),
+		redis.hGet(`${diamondsKey()}:${periods.day}`, userId),
 	]);
 
 	return {
@@ -112,6 +114,7 @@ async function getPlayerStats(userId: string): Promise<PlayerStats> {
 		attempts: Number(attempts ?? 0),
 		rank,
 		diamonds: Number(diamonds ?? 0),
+		diamondsToday: Number(diamondsToday ?? 0),
 	};
 }
 
@@ -167,7 +170,7 @@ api.get('/init', async (c) => {
 	const periods = playerPeriods();
 	const [leaderboard, stats, daily, today, week, month] = await Promise.all([
 		getLeaderboard(10),
-		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null, diamonds: 0 }),
+		userId ? getPlayerStats(userId) : Promise.resolve({ highscore: 0, attempts: 0, rank: null, diamonds: 0, diamondsToday: 0 }),
 		getDailyInfo(),
 		redis.zCard(playersKey(periods.day)),
 		redis.zCard(playersKey(periods.week)),
@@ -273,13 +276,15 @@ api.post('/score', async (c) => {
 	//	credited (the daily seed places identical diamonds, so summing every
 	//	run would make farming trivial). The balance accumulates the daily
 	//	maxima.
+	let diamondsCredited = 0;
 	if (collectedDiamonds > 0) {
 		const dayKey = `${diamondsKey()}:${periods.day}`;
 		const previousDayBest = Number((await redis.hGet(dayKey, userId)) ?? 0);
 		if (collectedDiamonds > previousDayBest) {
+			diamondsCredited = collectedDiamonds - previousDayBest;
 			await Promise.all([
 				redis.hSet(dayKey, { [userId]: `${collectedDiamonds}` }),
-				redis.hIncrBy(diamondsKey(), userId, collectedDiamonds - previousDayBest),
+				redis.hIncrBy(diamondsKey(), userId, diamondsCredited),
 			]);
 		}
 	}
@@ -298,6 +303,7 @@ api.post('/score', async (c) => {
 	return c.json<SaveScoreResponse>({
 		newBest: isNewBest ? score : null,
 		dailyNewBest,
+		diamondsCredited,
 		stats: await getPlayerStats(userId),
 	});
 });

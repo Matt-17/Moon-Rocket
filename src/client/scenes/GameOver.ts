@@ -9,6 +9,7 @@ export class GameOver extends Phaser.Scene {
 	score = 0
 	diamonds = 0
 	background!: Background;
+	private diamondResultText: Phaser.GameObjects.Text | null = null;
 
 	constructor() {
 		super('GameOver');
@@ -29,6 +30,16 @@ export class GameOver extends Phaser.Scene {
 					showToast(`Hooray, new personal best: ${result.newBest}!`);
 				} else if (result.dailyNewBest !== null) {
 					showToast(`New daily best: ${result.dailyNewBest}!`);
+				}
+
+				//	Show what this run actually earned - only the best haul of
+				//	the day is credited to the balance.
+				if (this.diamondResultText && this.diamonds > 0) {
+					this.diamondResultText.setText(
+						result.diamondsCredited > 0
+							? `+${this.diamonds}  (${result.diamondsCredited} new)`
+							: `+${this.diamonds}  (best today: ${result.stats.diamondsToday})`
+					);
 				}
 			}
 		});
@@ -63,13 +74,15 @@ export class GameOver extends Phaser.Scene {
 
 		// Diamonds collected during this run
 		const diamondItems: Phaser.GameObjects.GameObject[] = [];
+		this.diamondResultText = null;
 		if (this.diamonds > 0) {
+			this.diamondResultText = this.add
+				.text(-4, 20, `+${this.diamonds}`, TextStyles.withFontSize(TextStyles.SCORE, '12px'))
+				.setOrigin(0, 0.5)
+				.setResolution(4);
 			diamondItems.push(
 				this.add.image(-14, 20, 'diamond').setOrigin(0.5).setScale(0.7),
-				this.add
-					.text(-4, 20, `+${this.diamonds}`, TextStyles.withFontSize(TextStyles.SCORE, '12px'))
-					.setOrigin(0, 0.5)
-					.setResolution(4)
+				this.diamondResultText
 			);
 		}
 

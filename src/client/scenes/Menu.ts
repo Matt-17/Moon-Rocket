@@ -66,10 +66,15 @@ export class Menu extends Scene {
 		new StartButton(this, 100, 150).onClick(() => this.startGame());
 		this.input.keyboard?.on('keydown-SPACE', () => this.startGame(), this);
 
-		// Diamond balance under the start button
+		// Diamond balance and today's best haul under the start button
 		this.add.image(86, 186, 'diamond').setScale(0.7);
 		this.add
-			.text(96, 186, `× ${playerStats.diamonds ?? 0}`, TextStyles.withFontSize(TextStyles.SMALL, '12px'))
+			.text(
+				96,
+				186,
+				`× ${playerStats.diamonds ?? 0}   TODAY'S BEST: ${playerStats.diamondsToday ?? 0}`,
+				TextStyles.withFontSize(TextStyles.SMALL, '12px')
+			)
 			.setOrigin(0, 0.5)
 			.setResolution(4);
 

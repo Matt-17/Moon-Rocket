@@ -7,6 +7,9 @@ export type PlayerStats = {
 	rank?: number | null
 	//	Total diamonds ever collected (currency for skins).
 	diamonds: number
+	//	Best single-run diamond haul credited today (only the daily maximum
+	//	counts towards the balance).
+	diamondsToday: number
 }
 
 export interface LeaderboardEntry {
@@ -50,5 +53,8 @@ export type SaveScoreResponse = {
 	newBest: number | null
 	//	Same, for today's challenge; null also when this is not a daily post.
 	dailyNewBest: number | null
+	//	Diamonds actually added to the balance by this run (0 if the run did
+	//	not beat today's best haul).
+	diamondsCredited: number
 	stats: PlayerStats
 }
