@@ -158,6 +158,27 @@ async function createDailyPost() {
 	});
 
 	await redis.set(dailyPostKey(post.id), date);
+
+	//	Keep exactly one daily pinned: sticky the new post, unsticky the
+	//	previous one. Old dailies stay playable as an archive with their own
+	//	date seed and board. Best effort - pinning must never fail the post.
+	const currentKey = `${context.subredditId}:daily:current`;
+	const previousId = await redis.get(currentKey);
+	await redis.set(currentKey, post.id);
+	try {
+		await post.sticky();
+	} catch (error) {
+		console.error('Error pinning daily post:', error);
+	}
+	if (previousId) {
+		try {
+			const previous = await reddit.getPostById(previousId as `t3_${string}`);
+			await previous.unsticky();
+		} catch (error) {
+			console.error('Error unpinning previous daily post:', error);
+		}
+	}
+
 	return post;
 }
 

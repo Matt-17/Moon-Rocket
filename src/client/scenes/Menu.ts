@@ -38,9 +38,11 @@ export class Menu extends Scene {
 				.setResolution(4);
 		}
 
-		// Leaderboard tabs: today's challenge, all-time scores, diamonds
+		// Leaderboard tabs. The daily board only exists on daily challenge
+		// posts - regular posts play with random seeds and do not compete
+		// on it.
 		this.createLeaderboardTabs([
-			{ label: 'DAILY', entries: daily ? daily.leaderboard : (this.registry.get('todayLeaderboard') || []) },
+			...(daily ? [{ label: 'DAILY', entries: daily.leaderboard }] : []),
 			{ label: 'SCORE', entries: leaderboard },
 			{ label: 'DIAMONDS', entries: this.registry.get('diamondLeaderboard') || [] },
 		]);
@@ -199,7 +201,7 @@ export class Menu extends Scene {
 
 		boards.forEach((board, index) => {
 			const tab = this.add
-				.text(startX + (index - 1) * 90, tabY, board.label, TextStyles.withFontSize(TextStyles.SCORE, '14px'))
+				.text(startX + (index - (boards.length - 1) / 2) * 90, tabY, board.label, TextStyles.withFontSize(TextStyles.SCORE, '14px'))
 				.setOrigin(0.5, 0)
 				.setResolution(4)
 				.setInteractive({ useHandCursor: true });
