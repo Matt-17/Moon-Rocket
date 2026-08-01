@@ -153,6 +153,37 @@ api.get('/init', async (c) => {
 	return c.json<InitResponse>({ stats, leaderboard, daily });
 });
 
+//	Achievement flairs, highest tier first. Reaching a new tier with a new
+//	personal best sets the user's subreddit flair.
+const FLAIR_TIERS: ReadonlyArray<readonly [number, string]> = [
+	[1000, '💎🙌 Diamond Hands'],
+	[500, '🚀 Mooning'],
+	[100, 'Floor 100 Club'],
+];
+
+function flairForScore(score: number): string | null {
+	for (const [threshold, text] of FLAIR_TIERS) {
+		if (score >= threshold) return text;
+	}
+	return null;
+}
+
+async function updateAchievementFlair(member: string, previousBest: number, score: number) {
+	const { subredditName } = context;
+	if (!subredditName) return;
+
+	const newTier = flairForScore(score);
+	if (!newTier || newTier === flairForScore(previousBest)) return;
+
+	try {
+		const [, username] = member.split(':');
+		if (!username) return;
+		await reddit.setUserFlair({ subredditName, username, text: newTier });
+	} catch (error) {
+		console.error('Error setting achievement flair:', error);
+	}
+}
+
 //	Announces a run that entered the Top 10 with a comment under the post.
 async function announceTopTenEntry(member: string, score: number, rank: number) {
 	const { postId } = context;
@@ -203,8 +234,11 @@ api.post('/score', async (c) => {
 		redis.hIncrBy(attemptsKey(), userId, 1),
 	]);
 
-	//	Celebrate runs that climb into the Top 10 with a comment on the post.
+	//	Celebrate runs that climb into the Top 10 with a comment on the post,
+	//	and unlock achievement flairs on new milestone tiers.
 	if (isNewBest) {
+		await updateAchievementFlair(member, Number(currentHighscore ?? 0), score);
+
 		const rankAfter = await getUserRank(userId);
 		if (rankAfter !== null && rankAfter <= 10 && (rankBefore === null || rankAfter < rankBefore)) {
 			await announceTopTenEntry(member, score, rankAfter);
