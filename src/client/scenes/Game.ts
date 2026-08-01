@@ -50,17 +50,22 @@ export class Game extends Phaser.Scene {
 	private spawnedTriggers = 0;
 	private pbTriggerIndex = 0;
 
-	// News events: market phases announced by a ticker, biasing the candles
-	// for the following week. All randomness goes through this.rng so daily
-	// challenge runs stay identical for every player.
-	private static readonly NEWS_CHANCE = 0.45;
+	// News pickups: newspapers float in the level (seeded positions and
+	// types, so daily runs place identical news for everyone). Only a
+	// COLLECTED news item takes effect - it shapes the following week's
+	// candles. Replaying the same seed teaches which ones to grab (calm
+	// weeks flatten the chart) and which to avoid (steep stairs, chaos).
+	private static readonly NEWS_PICKUP_CHANCE = 0.15;
 	private static readonly NEWS_HEADLINES = {
+		calm: ['MARKETS ASLEEP', 'SIDEWAYS SUMMER', 'LOW VOLUME WEEK'],
 		bull: ['FED CUTS RATES!', 'MOON MISSION APPROVED!', 'INSTITUTIONS ARE BUYING!'],
 		bear: ['SEC INVESTIGATION!', 'RUG PULL RUMORS!', 'GAINS TAX INCOMING!'],
 		volatile: ['ELON TWEETS AGAIN!', 'EARNINGS WEEK CHAOS!', 'ALGO TRADERS GONE WILD!'],
 	} as const;
+	private static readonly NEWS_TYPES = ['calm', 'bull', 'bear', 'volatile'] as const;
 	private newsType: keyof typeof Game.NEWS_HEADLINES | null = null;
-	private newsWeeksLeft = 0;
+	private pendingNewsType: keyof typeof Game.NEWS_HEADLINES | null = null;
+	private newsPickups!: Phaser.Physics.Arcade.StaticGroup;
 	private newsBanner!: Phaser.GameObjects.Container;
 	private newsText!: Phaser.GameObjects.Text;
 
@@ -104,7 +109,7 @@ export class Game extends Phaser.Scene {
 			: (this.registry.get('playerStats')?.highscore ?? 0);
 
 		this.newsType = null;
-		this.newsWeeksLeft = 0;
+		this.pendingNewsType = null;
 		this.diamondsCollected = 0;
 		this.spawnedTriggers = 0;
 		this.pbTriggerIndex = 0;
@@ -131,6 +136,7 @@ export class Game extends Phaser.Scene {
 		this.candles = this.physics.add.staticGroup();
 		this.scores = this.physics.add.staticGroup();
 		this.diamondPickups = this.physics.add.staticGroup();
+		this.newsPickups = this.physics.add.staticGroup();
 
 		// Create player sprite (positioned at 25% of the screen width)
 		this.skin = getSelectedSkin(this.registry.get('playerStats')?.diamonds ?? 0);
@@ -143,6 +149,7 @@ export class Game extends Phaser.Scene {
 		this.physics.add.collider(this.rocket, this.candles, this.hitCandle, undefined, this);
 		this.physics.add.overlap(this.rocket, this.scores, this.hitScore, undefined, this);
 		this.physics.add.overlap(this.rocket, this.diamondPickups, this.collectDiamond, undefined, this);
+		this.physics.add.overlap(this.rocket, this.newsPickups, this.collectNews, undefined, this);
 
 		if (this.skin.key === 'rocket') {
 			(this.rocket.body as Phaser.Physics.Arcade.Body)
@@ -223,7 +230,7 @@ export class Game extends Phaser.Scene {
 			const viewLeft = cam.midPoint.x - cam.displayWidth / 2;
 			const viewTop = cam.midPoint.y - cam.displayHeight / 2;
 			this.scoreText.setPosition(viewLeft + 16, viewTop + 16);
-			this.newsBanner.setPosition(viewLeft + cam.displayWidth / 2 - 80, viewTop + 40);
+			this.newsBanner.setPosition(viewLeft + cam.displayWidth / 2 - 110, viewTop + 40);
 			this.diamondHud.setPosition(viewLeft + cam.displayWidth - 26, viewTop + 22);
 		});
 		this.physics.world.pause();
@@ -244,7 +251,7 @@ export class Game extends Phaser.Scene {
 		const openY = this.lastClose;
 
 		// 1) Richtung wählen (Marktphasen verschieben die Wahrscheinlichkeit)
-		const downChance = this.newsType === 'bull' ? 0.25 : this.newsType === 'bear' ? 0.75 : 0.5;
+		const downChance = this.newsType === 'bull' ? 0.15 : this.newsType === 'bear' ? 0.85 : 0.5;
 		let goDown = this.rng.frac() < downChance;
 
 		// 2) Genug Platz für trendStrengthMin?
@@ -254,8 +261,9 @@ export class Game extends Phaser.Scene {
 		if (goDown && roomDown < this.trendStrengthMin) goDown = false;
 		if (!goDown && roomUp < this.trendStrengthMin) goDown = true;
 
-		// 3) Zufällige Stärke zwischen min und max (volatile Wochen schlagen stärker aus)
-		const strengthScale = this.newsType === 'volatile' ? 1.7 : 1;
+		// 3) Zufällige Stärke zwischen min und max (volatile Wochen schlagen
+		//    stärker aus, ruhige Wochen flachen den Chart ab)
+		const strengthScale = this.newsType === 'volatile' ? 1.7 : this.newsType === 'calm' ? 0.45 : 1;
 		const chosen = Math.round(
 			this.rng.between(this.trendStrengthMin, this.trendStrengthMax) * strengthScale
 		);
@@ -444,12 +452,28 @@ export class Game extends Phaser.Scene {
 			this.createBestMarker(candleX + this.rocket.width);
 		}
 
-		//	Chance for a diamond in the gap after this candle. Both rng rolls
-		//	are deterministic, so daily runs place identical diamonds.
+		//	Chance for a diamond in the gap after this candle. All rng rolls
+		//	are deterministic, so daily runs place identical pickups. The
+		//	rolls happen unconditionally to keep the rng stream aligned no
+		//	matter which pickups the player collects.
 		const diamondRoll = this.rng.frac();
 		const diamondY = this.rng.between(30, GAME_HEIGHT - 30);
 		if (diamondRoll < Game.DIAMOND_CHANCE) {
 			this.diamondPickups.add(this.add.image(candleX + this.candleWidth + 14, diamondY, 'diamond'));
+		}
+
+		//	Chance for a floating news item. Type and headline are decided at
+		//	spawn time (seeded); the effect only applies if it gets collected.
+		const newsRoll = this.rng.frac();
+		const newsTypeIndex = this.rng.between(0, Game.NEWS_TYPES.length - 1);
+		const newsHeadlineIndex = this.rng.between(0, 2);
+		const newsY = this.rng.between(30, GAME_HEIGHT - 30);
+		if (newsRoll < Game.NEWS_PICKUP_CHANCE) {
+			const type = Game.NEWS_TYPES[newsTypeIndex]!;
+			const pickup = this.add.image(candleX + this.candleWidth + 34, newsY, 'news');
+			pickup.setData('newsType', type);
+			pickup.setData('headline', Game.NEWS_HEADLINES[type][newsHeadlineIndex]!);
+			this.newsPickups.add(pickup);
 		}
 
 		this.lastClose = ohlc.closeY;
@@ -464,35 +488,26 @@ export class Game extends Phaser.Scene {
 			);
 			this.nextCandleX += weekendTicks * this.candleWidth * 2;
 
-			this.updateNews();
+			//	A collected news item takes effect for the following week.
+			this.newsType = this.pendingNewsType;
+			this.pendingNewsType = null;
 		}
 	}
 
-	// MARK: - News events
-	//	Called at every week boundary. Note: the rng calls happen
-	//	unconditionally and in a fixed order to keep daily runs deterministic.
-	updateNews() {
-		if (this.newsWeeksLeft > 0) {
-			this.newsWeeksLeft--;
-			if (this.newsWeeksLeft === 0) {
-				this.newsType = null;
-			}
-		}
+	// MARK: - News pickups
+	collectNews(_: any, pickup: any) {
+		const type = pickup.getData('newsType') as keyof typeof Game.NEWS_HEADLINES;
+		const headline = pickup.getData('headline') as string;
+		pickup.destroy();
 
-		const roll = this.rng.frac();
-		if (this.newsType === null && roll < Game.NEWS_CHANCE) {
-			const types = Object.keys(Game.NEWS_HEADLINES) as (keyof typeof Game.NEWS_HEADLINES)[];
-			this.newsType = types[this.rng.between(0, types.length - 1)]!;
-			this.newsWeeksLeft = 1;
-
-			const headlines = Game.NEWS_HEADLINES[this.newsType];
-			this.showNewsBanner(headlines[this.rng.between(0, headlines.length - 1)]!);
-		}
+		this.pendingNewsType = type;
+		this.sound.play('milestone', { volume: 0.25 });
+		this.showNewsBanner(type, headline);
 	}
 
-	showNewsBanner(headline: string) {
-		const color = this.newsType === 'bull' ? '#1ec51e' : this.newsType === 'bear' ? '#f7323c' : '#ffff88';
-		this.newsText.setText(headline).setColor(color);
+	showNewsBanner(type: keyof typeof Game.NEWS_HEADLINES, headline: string) {
+		const color = type === 'calm' ? '#1ec51e' : type === 'volatile' ? '#ffff88' : '#f7323c';
+		this.newsText.setText(`NEXT WEEK: ${headline}`).setColor(color);
 
 		this.newsBanner.setAlpha(0).setVisible(true);
 		this.tweens.add({
@@ -500,7 +515,7 @@ export class Game extends Phaser.Scene {
 			alpha: 1,
 			duration: 250,
 			yoyo: true,
-			hold: 3200,
+			hold: 2800,
 			onComplete: () => this.newsBanner.setVisible(false),
 		});
 	}
@@ -592,11 +607,13 @@ export class Game extends Phaser.Scene {
 			this.hitCandle();
 		}
 
-		// Remove candles that are far behind the rocket
-		this.candles.children.entries.forEach((candle) => {
-			if ((candle as Phaser.GameObjects.Sprite).x < this.rocket.x - GAME_WIDTH) {
-				candle.destroy();
-			}
-		});
+		// Remove candles and pickups that are far behind the rocket
+		for (const group of [this.candles, this.diamondPickups, this.newsPickups]) {
+			group.children.entries.forEach((entry) => {
+				if ((entry as Phaser.GameObjects.Sprite).x < this.rocket.x - GAME_WIDTH) {
+					entry.destroy();
+				}
+			});
+		}
 	}
 }
